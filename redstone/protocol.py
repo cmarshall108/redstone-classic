@@ -63,7 +63,7 @@ class ServerIdentification(PacketSerializer):
         return True
 
     def serializeDone(self):
-        self._dispatcher.dispatch(LevelInitialize.DIRECTION, LevelInitialize.ID)
+        self._dispatcher.handleDispatch(LevelInitialize.DIRECTION, LevelInitialize.ID)
 
 class PlayerIdentification(PacketSerializer):
     ID = 0x00
@@ -77,7 +77,7 @@ class PlayerIdentification(PacketSerializer):
             self._protocol.closeConnection()
             return
 
-        self._dispatcher.dispatch(ServerIdentification.DIRECTION, ServerIdentification.ID)
+        self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID)
 
 class PacketDispatcher(object):
 
