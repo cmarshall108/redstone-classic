@@ -8,6 +8,7 @@ from callbacks import supports_callbacks
 from twisted.internet.protocol import Protocol, ServerFactory
 from redstone.util import DataBuffer
 from redstone.protocol import PacketDispatcher
+from redstone.world import World
 
 class NetworkTransportBuffer(object):
 
@@ -23,10 +24,6 @@ class NetworkTransportBuffer(object):
         # when the data in the buffer is sent we store the most recent
         # known length of data sent from the buffer in order to flush it.
         self._flushable = 0
-
-        # setup the callback so once the data is sent the buffer
-        # will be flushed and be prepared for new data.
-        self.send.add_callback(self.flush)
 
     def add(self, data):
         # do not send empty data to the connection, it could
@@ -46,7 +43,6 @@ class NetworkTransportBuffer(object):
         # this will remove the data starting at the beginning and so forth.
         self._buffered = self._buffered[length:]
 
-    @supports_callbacks
     def send(self):
         # join the data in the buffered list into one string
         # object so we can send it over the wire.
@@ -60,6 +56,10 @@ class NetworkTransportBuffer(object):
         # now we're done send the data over the wire using
         # the protocol's transport class.
         self._protocol.transport.write(data)
+
+        # the data has been sent, flush the buffer to prepare
+        # for anymore incoming data.
+        self.flush()
 
     def flush(self):
         # before we flush the data from the buffered list
@@ -120,6 +120,11 @@ class NetworkFactory(ServerFactory):
 
     def __init__(self):
         self._protocols = []
+        self._world = World()
+
+    @property
+    def world(self):
+        return self._world
 
     def startFactory(self):
         pass

@@ -36,12 +36,66 @@ class PacketSerializer(object):
     def deserializeDone(self):
         pass
 
+class DisconnectPlayer(PacketSerializer):
+    ID = 0x0e
+    DIRECTION = 'upstream'
+
+    def serialize(self, reason):
+        self._dataBuffer.writeString(reason)
+
+        return True
+
+    def serializeDone(self):
+        # we've just sent a disconnect message to the player,
+        # but to make sure the player disconnects drop there connection.
+        self._protocol.handleDisconnect()
+
+class DespawnPlayer(PacketSerializer):
+    ID = 0x0c
+    DIRECTION = 'upstream'
+
+class SpawnPlayer(PacketSerializer):
+    ID = 0x07
+    DIRECTION = 'upstream'
+
+class LevelFinalize(PacketSerializer):
+    ID = 0x04
+    DIRECTION = 'upstream'
+
+    def serialize(self):
+        world = self._protocol.factory.world
+
+        self._dataBuffer.writeShort(world.WORLD_WIDTH)
+        self._dataBuffer.writeShort(world.WORLD_HEIGHT)
+        self._dataBuffer.writeShort(world.WORLD_DEPTH)
+
+        return True
+
+    def serializeDone(self):
+        pass
+
+class LevelDataChunk(PacketSerializer):
+    ID = 0x03
+    DIRECTION = 'upstream'
+
+    def serialize(self):
+        chunkData = self._protocol.factory.world.encode()
+
+        self._dataBuffer.writeShort(len(chunkData))
+        self._dataBuffer.write(chunkData)
+        self._dataBuffer.writeByte(100)
+
+        return False
+
+    def serializeDone(self):
+        self._dispatcher.handleDispatch(LevelFinalize.DIRECTION, LevelFinalize.ID)
+
 class LevelInitialize(PacketSerializer):
     ID = 0x02
     DIRECTION = 'upstream'
 
-    def serialize(self):
-        return True
+    def serializeDone(self):
+        self._dispatcher.handleDispatch(LevelDataChunk.DIRECTION, LevelDataChunk.ID)
 
 class Ping(PacketSerializer):
     ID = 0x01
@@ -93,6 +147,11 @@ class PacketDispatcher(object):
                 ServerIdentification.ID: ServerIdentification,
                 Ping.ID: Ping,
                 LevelInitialize.ID: LevelInitialize,
+                LevelDataChunk.ID: LevelDataChunk,
+                LevelFinalize.ID: LevelFinalize,
+                SpawnPlayer.ID: SpawnPlayer,
+                DespawnPlayer.ID: DespawnPlayer,
+                DisconnectPlayer.ID: DisconnectPlayer,
             }
         }
 
