@@ -16,7 +16,6 @@ def compress(data, compresslevel=9):
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=compresslevel) as f:
         f.write(data)
-        f.close()
 
     return buf.getvalue()
 
@@ -27,7 +26,6 @@ def decompress(data):
 
     with gzip.GzipFile(fileobj=io.BytesIO(data)) as f:
         data = f.read()
-        f.close()
 
     return data
 
@@ -58,7 +56,7 @@ class World(object):
     def set_block(self, x, y, z, block):
         self.blockData[x + self.WORLD_DEPTH * (z + self.WORLD_WIDTH * y)] = block
 
-    def encode(self):
+    def serialize(self):
         return compress(struct.pack('!I', len(self.blockData)) + bytes(self.blockData))
 
     def load(self, data):

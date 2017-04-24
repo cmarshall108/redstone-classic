@@ -54,9 +54,25 @@ class DespawnPlayer(PacketSerializer):
     ID = 0x0c
     DIRECTION = 'upstream'
 
+    def serialize(self, entity):
+        self._dataBuffer.writeSByte(entity.id)
+
+        return True
+
 class SpawnPlayer(PacketSerializer):
     ID = 0x07
     DIRECTION = 'upstream'
+
+    def serialize(self, entity):
+        self._dataBuffer.writeSByte(entity.id)
+        self._dataBuffer.writeString(entity.username)
+        self._dataBuffer.writeShort(entity.x)
+        self._dataBuffer.writeShort(entity.y)
+        self._dataBuffer.writeShort(entity.z)
+        self._dataBuffer.writeByte(entity.yaw)
+        self._dataBuffer.writeByte(entity.pitch)
+
+        return True
 
 class LevelFinalize(PacketSerializer):
     ID = 0x04
@@ -72,30 +88,34 @@ class LevelFinalize(PacketSerializer):
         return True
 
     def serializeDone(self):
-        pass
+        # the client has just joined the game, update the entities
+        # within the clients world they are currently in.
+        self._protocol.factory.updatePlayers(self._protocol)
 
 class LevelDataChunk(PacketSerializer):
     ID = 0x03
     DIRECTION = 'upstream'
 
-    def serialize(self):
-        chunkData = self._protocol.factory.world.encode()
-
-        self._dataBuffer.writeShort(len(chunkData))
-        self._dataBuffer.write(chunkData)
-        self._dataBuffer.writeByte(100)
+    def serialize(self, chunkCount, chunk):
+        self._dataBuffer.writeShort(len(chunk))
+        self._dataBuffer.writeArray(chunk)
+        self._dataBuffer.writeByte(int((100 / len(chunk)) * chunkCount))
 
         return False
-
-    def serializeDone(self):
-        self._dispatcher.handleDispatch(LevelFinalize.DIRECTION, LevelFinalize.ID)
 
 class LevelInitialize(PacketSerializer):
     ID = 0x02
     DIRECTION = 'upstream'
 
     def serializeDone(self):
-        self._dispatcher.handleDispatch(LevelDataChunk.DIRECTION, LevelDataChunk.ID)
+        chunk = self._protocol.factory.world.serialize()
+        chunks = [chunk[i: i + 1024] for i in range(0, len(chunk), 1024)]
+
+        for chunkCount, chunk in enumerate(chunks):
+            self._dispatcher.handleDispatch(LevelDataChunk.DIRECTION, LevelDataChunk.ID,
+                chunkCount, chunk)
+
+        self._dispatcher.handleDispatch(LevelFinalize.DIRECTION, LevelFinalize.ID)
 
 class Ping(PacketSerializer):
     ID = 0x01
@@ -112,7 +132,7 @@ class ServerIdentification(PacketSerializer):
         self._dataBuffer.writeByte(0x07)
         self._dataBuffer.writeString('A Minecraft classic server!')
         self._dataBuffer.writeString('Welcome to the custom Mineserver!')
-        self._dataBuffer.writeByte(0x64)
+        self._dataBuffer.writeByte(0x00)
 
         return True
 
@@ -131,6 +151,13 @@ class PlayerIdentification(PacketSerializer):
             self._protocol.closeConnection()
             return
 
+        if self._protocol.entity is not None:
+            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
+                'Cheat detected: You already have a player entity!')
+
+            return
+
+        self._protocol.factory.addPlayer(self._protocol, username)
         self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID)
 
 class PacketDispatcher(object):

@@ -16,6 +16,9 @@ class Entity(object):
         self._yaw = 0
         self._pitch = 0
 
+    def isPlayer(self):
+        return False
+
     @property
     def x(self):
         return self._x
@@ -56,5 +59,62 @@ class Entity(object):
     def pitch(self, pitch):
         self._pitch = pitch
 
-class PlayerEntity(object):
-    pass
+class PlayerEntity(Entity):
+
+    def __init__(self):
+        super(PlayerEntity, self).__init__()
+
+        self._username = ''
+
+    @property
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self, username):
+        self._username = username
+
+    def isPlayer(self):
+        return True
+
+class UniqueIdAllocator(object):
+
+    def __init__(self, maxIds=255):
+        super(UniqueIdAllocator, self).__init__()
+
+        self._id = 0
+
+    def allocate(self):
+        self._id += 1; return self._id
+
+    def deallocate(self, id):
+        pass
+
+class EntityManager(object):
+
+    def __init__(self, factory):
+        super(EntityManager, self).__init__()
+
+        self._factory = factory
+        self._allocator = UniqueIdAllocator()
+        self._entities = []
+
+    @property
+    def allocator(self):
+        return self._allocator
+
+    @property
+    def entities(self):
+        return self._entities
+
+    def addEntity(self, entity):
+        if entity in self._entities:
+            return
+
+        self._entities.append(entity)
+
+    def removeEntity(self, entity):
+        if entity not in self._entities:
+            return
+
+        self._entities.remove(entity)

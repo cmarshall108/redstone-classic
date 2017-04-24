@@ -72,3 +72,14 @@ class DataBuffer(object):
             outString += '\x20'
 
         self.write(outString)
+
+    def writeArray(self, byteArray, length=1024):
+        outByteArray = bytes(byteArray)
+
+        if len(outByteArray) > length:
+            raise NetworkBufferError('ByteArray exceeded maximum data length %d!' % length)
+
+        for _ in xrange(length - len(outByteArray)):
+            outByteArray += '\x00'
+
+        self.write(outByteArray)

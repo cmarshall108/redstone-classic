@@ -7,8 +7,9 @@
 from callbacks import supports_callbacks
 from twisted.internet.protocol import Protocol, ServerFactory
 from redstone.util import DataBuffer
-from redstone.protocol import PacketDispatcher
+from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer
 from redstone.world import World
+from redstone.entity import Entity, PlayerEntity, EntityManager
 
 class NetworkTransportBuffer(object):
 
@@ -79,6 +80,7 @@ class NetworkProtocol(Protocol):
     def __init__(self):
         self._transportBuffer = NetworkTransportBuffer(self)
         self._dispatcher = PacketDispatcher(self)
+        self._entity = None
 
     @property
     def transportBuffer(self):
@@ -87,6 +89,14 @@ class NetworkProtocol(Protocol):
     @property
     def dispatcher(self):
         return self._dispatcher
+
+    @property
+    def entity(self):
+        return self._entity
+
+    @entity.setter
+    def entity(self, entity):
+        self._entity = entity
 
     def connectionMade(self):
         self.factory.addProtocol(self)
@@ -120,11 +130,17 @@ class NetworkFactory(ServerFactory):
 
     def __init__(self):
         self._protocols = []
+
         self._world = World()
+        self._entityManager = EntityManager(self)
 
     @property
     def world(self):
         return self._world
+
+    @property
+    def entityManager(self):
+        return self._entityManager
 
     def startFactory(self):
         pass
@@ -142,4 +158,53 @@ class NetworkFactory(ServerFactory):
         if protocol not in self._protocols:
             return
 
+        # if the protocol has a entity, remove it.
+        if protocol.entity is not None:
+            self.removePlayer(protocol)
+
         self._protocols.remove(protocol)
+
+    def addPlayer(self, protocol, username):
+        if protocol not in self._protocols or protocol.entity is not None:
+            return
+
+        playerEntity = PlayerEntity()
+        playerEntity.id = self.entityManager.allocator.allocate()
+        playerEntity.username = username
+
+        # set the protocols entity object
+        protocol.entity = playerEntity
+
+        # add the player entity to the entity manager
+        self._entityManager.addEntity(playerEntity)
+
+        # update all entities for all players except for the entities owner.
+        self.broadcast(SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
+
+    def removePlayer(self, protocol):
+        if protocol not in self._protocols or protocol.entity is None:
+            return
+
+        # remove the protocols entity from the entity manager
+        self._entityManager.removeEntity(protocol.entity)
+
+        # update all entities for all players except for the entities owner.
+        self.broadcast(DespawnPlayer.DIRECTION, DespawnPlayer.ID, [protocol], protocol.entity)
+
+        # remove the entity from the protocol
+        protocol.entity = None
+
+    def updatePlayers(self, protocol):
+        for entity in self._entityManager.entities:
+            if entity.id == protocol.entity.id:
+                continue
+
+            protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID,
+                entity)
+
+    def broadcast(self, direction, packetId, exceptions, *args, **kw):
+        for protocol in self._protocols:
+            if protocol in exceptions:
+                continue
+
+            protocol.dispatcher.handleDispatch(direction, packetId, *args, **kw)
