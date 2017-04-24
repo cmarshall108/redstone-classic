@@ -178,9 +178,6 @@ class NetworkFactory(ServerFactory):
         # add the player entity to the entity manager
         self._entityManager.addEntity(playerEntity)
 
-        # update all entities for all players except for the entities owner.
-        self.broadcast(SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
-
     def removePlayer(self, protocol):
         if protocol not in self._protocols or protocol.entity is None:
             return
@@ -199,8 +196,19 @@ class NetworkFactory(ServerFactory):
             if entity.id == protocol.entity.id:
                 continue
 
-            protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID,
-                entity)
+            protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, entity)
+
+    def updatePlayer(self, protocol):
+        # a protocol requested a new player entity be generated
+        # since we must generate the player for the protocol as well
+        # so the client knows what entity belongs to it, we need to
+        # send a custom packet to the protocol with the entity id set to -1
+        # this will tell the client that the entity recieved is it's own.
+        protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, protocol.entity)
+
+        # now just broadcast the player to any clients connected, but do not broadcast this packet
+        # to the protocol in which owns the player entity.
+        self.broadcast(SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
 
     def broadcast(self, direction, packetId, exceptions, *args, **kw):
         for protocol in self._protocols:

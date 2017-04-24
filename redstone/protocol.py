@@ -64,7 +64,7 @@ class SpawnPlayer(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self, entity):
-        self._dataBuffer.writeSByte(entity.id)
+        self._dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
         self._dataBuffer.writeString(entity.username)
         self._dataBuffer.writeShort(entity.x)
         self._dataBuffer.writeShort(entity.y)
@@ -88,6 +88,9 @@ class LevelFinalize(PacketSerializer):
         return True
 
     def serializeDone(self):
+        # send update for the player entity.
+        self._protocol.factory.updatePlayer(self._protocol)
+
         # the client has just joined the game, update the entities
         # within the clients world they are currently in.
         self._protocol.factory.updatePlayers(self._protocol)
@@ -220,4 +223,4 @@ class PacketDispatcher(object):
             packet.serializeDone()
 
     def handleDiscard(self, packetId):
-        pass
+        print 'discard packet ', packetId
