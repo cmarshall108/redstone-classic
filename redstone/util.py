@@ -66,7 +66,7 @@ class DataBuffer(object):
         outString = string.encode('utf-8')
 
         if len(outString) > length:
-            raise NetworkBufferError('String exceeded maximum data length %d!' % length)
+            outString = outString[:length]
 
         for _ in xrange(length - len(outString)):
             outString += '\x20'
@@ -77,7 +77,7 @@ class DataBuffer(object):
         outByteArray = bytes(byteArray)
 
         if len(outByteArray) > length:
-            raise NetworkBufferError('ByteArray exceeded maximum data length %d!' % length)
+            outByteArray = outByteArray[:length]
 
         for _ in xrange(length - len(outByteArray)):
             outByteArray += '\x00'

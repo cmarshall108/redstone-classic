@@ -36,6 +36,35 @@ class PacketSerializer(object):
     def deserializeDone(self):
         pass
 
+class ServerMessage(PacketSerializer):
+    ID = 0x0d
+    DIRECTION = 'upstream'
+
+    def serialize(self, entityId, message):
+        self._dataBuffer.writeSByte(entityId)
+        self._dataBuffer.writeString(message)
+
+        return True
+
+class ClientMessage(PacketSerializer):
+    ID = 0x0d
+    DIRECTION = 'downstream'
+
+    def deserialize(self, dataBuffer):
+        try:
+            unused = dataBuffer.readByte()
+            message = dataBuffer.readString()
+        except:
+            self._protocol.handleDisconnect()
+            return
+
+        entity = self._protocol.entity
+
+        message = '<%s> %s' % (entity.username, message)
+
+        self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
+            entity.id, message)
+
 class PositionAndOrientationUpdate(PacketSerializer):
     ID = 0x09
     DIRECTION = 'upstream'
@@ -226,6 +255,7 @@ class PacketDispatcher(object):
             'downstream': {
                 PlayerIdentification.ID: PlayerIdentification,
                 PositionAndOrientation.ID: PositionAndOrientation,
+                ClientMessage.ID: ClientMessage,
             },
             'upstream': {
                 ServerIdentification.ID: ServerIdentification,
@@ -236,6 +266,7 @@ class PacketDispatcher(object):
                 SpawnPlayer.ID: SpawnPlayer,
                 DespawnPlayer.ID: DespawnPlayer,
                 PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
+                ServerMessage.ID: ServerMessage,
                 DisconnectPlayer.ID: DisconnectPlayer,
             }
         }
