@@ -36,6 +36,59 @@ class PacketSerializer(object):
     def deserializeDone(self):
         pass
 
+class PositionAndOrientationUpdate(PacketSerializer):
+    ID = 0x09
+    DIRECTION = 'upstream'
+
+    def serialize(self, entityId, x, y, z, yaw, pitch):
+        self._dataBuffer.writeSByte(entityId)
+        self._dataBuffer.writeSByte(x)
+        self._dataBuffer.writeSByte(y)
+        self._dataBuffer.writeSByte(z)
+        self._dataBuffer.writeByte(yaw)
+        self._dataBuffer.writeByte(pitch)
+
+        return True
+
+class PositionAndOrientation(PacketSerializer):
+    ID = 0x08
+    DIRECTION = 'downstream'
+
+    def deserialize(self, dataBuffer):
+        try:
+            playerId = dataBuffer.readByte()
+            x = dataBuffer.readShort()
+            y = dataBuffer.readShort()
+            z = dataBuffer.readShort()
+            yaw = dataBuffer.readByte()
+            pitch = dataBuffer.readByte()
+        except:
+            self._protocol.handleDisconnect()
+            return
+
+        x = float(x / 32.0)
+        y = float(y / 32.0)
+        z = float(z / 32.0)
+
+        # update the players x,y,z,yaw,pitch and subtract the current value
+        # from the last known value to the the location change.
+        entity = self._protocol.entity
+
+        changeX = entity.x - x
+        changeY = entity.y - y
+        changeZ = entity.z - z
+
+        entity.x = x
+        entity.y = y
+        entity.z = z
+
+        entity.yaw = yaw
+        entity.pitch = pitch
+
+        self._protocol.factory.broadcast(PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [
+            self._protocol], self._protocol.entity.id if playerId == 255 else playerId,
+                changeX, changeY, changeZ, entity.yaw, entity.pitch)
+
 class DisconnectPlayer(PacketSerializer):
     ID = 0x0e
     DIRECTION = 'upstream'
@@ -112,7 +165,7 @@ class LevelInitialize(PacketSerializer):
 
     def serializeDone(self):
         chunk = self._protocol.factory.world.serialize()
-        chunks = [chunk[i: i + 1024] for i in range(0, len(chunk), 1024)]
+        chunks = [chunk[i: i + 1024] for i in xrange(0, len(chunk), 1024)]
 
         for chunkCount, chunk in enumerate(chunks):
             self._dispatcher.handleDispatch(LevelDataChunk.DIRECTION, LevelDataChunk.ID,
@@ -172,6 +225,7 @@ class PacketDispatcher(object):
         self._packets = {
             'downstream': {
                 PlayerIdentification.ID: PlayerIdentification,
+                PositionAndOrientation.ID: PositionAndOrientation,
             },
             'upstream': {
                 ServerIdentification.ID: ServerIdentification,
@@ -181,6 +235,7 @@ class PacketDispatcher(object):
                 LevelFinalize.ID: LevelFinalize,
                 SpawnPlayer.ID: SpawnPlayer,
                 DespawnPlayer.ID: DespawnPlayer,
+                PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
                 DisconnectPlayer.ID: DisconnectPlayer,
             }
         }
