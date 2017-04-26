@@ -301,9 +301,7 @@ class WorldManager(WorldManagerIO):
 
         # setup a new world instance and generate the block data.
         world = World(self, worldName)
-
-        # write the world data to the file
-        self.write(self.getFilePath(worldName), 'wb', world.serialize())
+        world.save()
 
         # add the world to the list of active worlds
         self.addWorld(world)
