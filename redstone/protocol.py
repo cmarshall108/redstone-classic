@@ -5,6 +5,7 @@
  """
 
 from redstone.util import DataBuffer
+from redstone.logging import Logger as logger
 
 class PacketSerializer(object):
     ID = None
@@ -119,6 +120,8 @@ class ClientMessage(PacketSerializer):
                 username=username, worldName='testing')
 
         message = '%s: %s' % (entity.username, message)
+
+        logger.info(message)
 
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
             entity.id, message)
