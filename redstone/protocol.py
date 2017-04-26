@@ -36,6 +36,44 @@ class PacketSerializer(object):
     def deserializeDone(self):
         pass
 
+class SetBlockServer(PacketSerializer):
+    ID = 0x06
+    DIRECTION = 'upstream'
+
+    def serialize(self, x, y, z, blockType):
+        self._dataBuffer.writeShort(x)
+        self._dataBuffer.writeShort(y)
+        self._dataBuffer.writeShort(z)
+        self._dataBuffer.writeByte(blockType)
+
+        return True
+
+class SetBlockClient(PacketSerializer):
+    ID = 0x05
+    DIRECTION = 'downstream'
+
+    def deserialize(self, dataBuffer):
+        try:
+            x = dataBuffer.readShort()
+            y = dataBuffer.readShort()
+            z = dataBuffer.readShort()
+            mode = dataBuffer.readByte()
+            blockType = dataBuffer.readByte()
+        except:
+            self._protocol.handleDisconnect()
+            return
+
+        # todo: use block types instead of hard coded block types.
+        if mode == 0:
+            blockType = 0x00
+
+        # set the block on the world instance
+        self._protocol.factory.world.setBlock(x, y, z, blockType)
+
+        # now broadcast update for the block to all clients
+        self._protocol.factory.broadcast(SetBlockServer.DIRECTION, SetBlockServer.ID, [self._protocol],
+            x, y, z, blockType)
+
 class ServerMessage(PacketSerializer):
     ID = 0x0d
     DIRECTION = 'upstream'
@@ -114,7 +152,7 @@ class PositionAndOrientation(PacketSerializer):
         z = float(z / 32.0)
 
         # update the players x,y,z,yaw,pitch and subtract the current value
-        # from the last known value to the the location change.
+        # from the last known value to get the new location change.
         entity = self._protocol.entity
 
         changeX = entity.x - x
@@ -277,6 +315,7 @@ class PacketDispatcher(object):
                 PlayerIdentification.ID: PlayerIdentification,
                 PositionAndOrientation.ID: PositionAndOrientation,
                 ClientMessage.ID: ClientMessage,
+                SetBlockClient.ID: SetBlockClient,
             },
             'upstream': {
                 ServerIdentification.ID: ServerIdentification,
@@ -289,6 +328,7 @@ class PacketDispatcher(object):
                 PositionAndOrientationInit.ID: PositionAndOrientationInit,
                 PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
                 ServerMessage.ID: ServerMessage,
+                SetBlockServer.ID: SetBlockServer,
                 DisconnectPlayer.ID: DisconnectPlayer,
             }
         }

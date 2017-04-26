@@ -50,10 +50,10 @@ class World(object):
 
         return blockData
 
-    def get_block(self, x, y, z):
+    def getBlock(self, x, y, z):
         return self.blockData[x + self.WORLD_DEPTH * (z + self.WORLD_WIDTH * y)]
 
-    def set_block(self, x, y, z, block):
+    def setBlock(self, x, y, z, block):
         self.blockData[x + self.WORLD_DEPTH * (z + self.WORLD_WIDTH * y)] = block
 
     def serialize(self):
