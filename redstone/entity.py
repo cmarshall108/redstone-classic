@@ -15,6 +15,7 @@ class Entity(object):
         self._z = 0
         self._yaw = 0
         self._pitch = 0
+        self._world = ''
 
     def isPlayer(self):
         return False
@@ -74,6 +75,14 @@ class PlayerEntity(Entity):
     def username(self, username):
         self._username = username
 
+    @property
+    def world(self):
+        return self._world
+
+    @world.setter
+    def world(self, world):
+        self._world = world
+
     def isPlayer(self):
         return True
 
@@ -92,10 +101,9 @@ class UniqueIdAllocator(object):
 
 class EntityManager(object):
 
-    def __init__(self, factory):
+    def __init__(self):
         super(EntityManager, self).__init__()
 
-        self._factory = factory
         self._allocator = UniqueIdAllocator()
         self._entities = {}
 
@@ -118,6 +126,9 @@ class EntityManager(object):
             return
 
         del self._entities[entity.id]
+
+    def hasEntity(self, entityId):
+        return entityId in self._entities
 
     def getEntity(self, entityId):
         return self._entities.get(entityId)

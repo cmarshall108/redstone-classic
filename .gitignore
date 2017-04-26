@@ -90,3 +90,7 @@ ENV/
 
 # Darwin/Mac OS X
 *.DS_Store
+
+# Worlds
+worlds/
+*.dat

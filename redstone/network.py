@@ -4,12 +4,10 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-from callbacks import supports_callbacks
 from twisted.internet.protocol import Protocol, ServerFactory
 from redstone.util import DataBuffer
 from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
-from redstone.world import World
-from redstone.entity import Entity, PlayerEntity, EntityManager
+from redstone.world import WorldManager
 
 class NetworkTransportBuffer(object):
 
@@ -131,19 +129,18 @@ class NetworkFactory(ServerFactory):
     def __init__(self):
         self._protocols = []
 
-        self._world = World()
-        self._entityManager = EntityManager(self)
+        self._worldManager = WorldManager(self)
 
     @property
-    def world(self):
-        return self._world
+    def protocols(self):
+        return self._protocols
 
     @property
-    def entityManager(self):
-        return self._entityManager
+    def worldManager(self):
+        return self._worldManager
 
     def startFactory(self):
-        pass
+        self._worldManager.setup()
 
     def stopFactory(self):
         # disconnect and remove all players on the server
@@ -161,59 +158,13 @@ class NetworkFactory(ServerFactory):
 
         # if the protocol has a entity, remove it.
         if protocol.entity is not None:
-            self.removePlayer(protocol)
+            world = self.worldManager.getWorldFromEntity(protocol.entity.id)
+            world.removePlayer(protocol)
 
         self._protocols.remove(protocol)
 
-    def addPlayer(self, protocol, username):
-        if protocol not in self._protocols or protocol.entity is not None:
-            return
-
-        playerEntity = PlayerEntity()
-        playerEntity.id = self.entityManager.allocator.allocate()
-        playerEntity.username = username
-
-        playerEntity.x = 65
-        playerEntity.y = 65
-        playerEntity.z = 65
-
-        # set the protocols entity object
-        protocol.entity = playerEntity
-
-        # add the player entity to the entity manager
-        self._entityManager.addEntity(playerEntity)
-
-    def removePlayer(self, protocol):
-        if protocol not in self._protocols or protocol.entity is None:
-            return
-
-        # remove the protocols entity from the entity manager
-        self._entityManager.removeEntity(protocol.entity)
-
-        # update all entities for all players except for the entities owner.
-        self.broadcast(DespawnPlayer.DIRECTION, DespawnPlayer.ID, [protocol], protocol.entity)
-
-        # remove the entity from the protocol
-        protocol.entity = None
-
-    def updatePlayers(self, protocol):
-        for (entityId, entity) in self._entityManager.entities.items():
-            if entity.id == protocol.entity.id:
-                continue
-
-            protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, entity)
-
-    def updatePlayer(self, protocol):
-        # a protocol requested a new player entity be generated
-        # since we must generate the player for the protocol as well
-        # so the client knows what entity belongs to it, we need to
-        # send a custom packet to the protocol with the entity id set to -1
-        # this will tell the client that the entity recieved is it's own.
-        protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, protocol.entity)
-
-        # now just broadcast the player to any clients connected, but do not broadcast this packet
-        # to the protocol in which owns the player entity.
-        self.broadcast(SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
+    def hasProtocol(self, protocol):
+        return protocol in self._protocols
 
     def disconnect(self):
         # disconnect all players since the server is shutting down.

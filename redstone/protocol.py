@@ -63,15 +63,18 @@ class SetBlockClient(PacketSerializer):
             self._protocol.handleDisconnect()
             return
 
+        world = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id)
+
         # todo: use block types instead of hard coded block types.
         if mode == 0:
             blockType = 0x00
 
         # set the block on the world instance
-        self._protocol.factory.world.setBlock(x, y, z, blockType)
+        world.setBlock(x, y, z, blockType)
 
         # now broadcast update for the block to all clients
-        self._protocol.factory.broadcast(SetBlockServer.DIRECTION, SetBlockServer.ID, [self._protocol],
+        self._protocol.factory.worldManager.broadcast(world, SetBlockServer.DIRECTION, SetBlockServer.ID, [self._protocol],
             x, y, z, blockType)
 
 class ServerMessage(PacketSerializer):
@@ -97,10 +100,23 @@ class ClientMessage(PacketSerializer):
             return
 
         playerId = self._protocol.entity.id if playerId == 255 else playerId
-        entity = self._protocol.factory.entityManager.getEntity(playerId)
+        entity = self._protocol.factory.worldManager.getEntityFromWorld(playerId)
 
         if not entity:
             return
+
+        # command for testing multiple worlds, to be removed later
+        world = self._protocol.factory.worldManager.getWorldFromEntity(entity.id)
+        username = entity.username
+
+        if message == '/goto main':
+            world.removePlayer(self._protocol)
+            self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
+                username=username, worldName='main')
+        elif message == '/goto testing':
+            world.removePlayer(self._protocol)
+            self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
+                username=username, worldName='testing')
 
         message = '%s: %s' % (entity.username, message)
 
@@ -177,9 +193,9 @@ class PositionAndOrientation(PacketSerializer):
         entity.yaw = yaw
         entity.pitch = pitch
 
-        self._protocol.factory.broadcast(PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [
-            self._protocol], self._protocol.entity.id if playerId == 255 else playerId, changeX,
-                changeY, changeZ, entity.yaw, entity.pitch)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
+        self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [self._protocol],
+            self._protocol.entity.id if playerId == 255 else playerId, changeX, changeY, changeZ, entity.yaw, entity.pitch)
 
 class DisconnectPlayer(PacketSerializer):
     ID = 0x0e
@@ -224,21 +240,26 @@ class LevelFinalize(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self):
-        world = self._protocol.factory.world
+        world = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id)
 
-        self._dataBuffer.writeShort(world.WORLD_WIDTH)
-        self._dataBuffer.writeShort(world.WORLD_HEIGHT)
-        self._dataBuffer.writeShort(world.WORLD_DEPTH)
+        self._dataBuffer.writeShort(world.width)
+        self._dataBuffer.writeShort(world.height)
+        self._dataBuffer.writeShort(world.depth)
 
         return True
 
     def serializeDone(self):
-        # send update for the player entity.
-        self._protocol.factory.updatePlayer(self._protocol)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id)
 
         # the client has just joined the game, update the entities
         # within the clients world they are currently in.
-        self._protocol.factory.updatePlayers(self._protocol)
+        world.updatePlayers(self._protocol)
+
+        # now update our player and send then entity data
+        # to all existing clients in that world
+        world.updatePlayer(self._protocol)
 
 class LevelDataChunk(PacketSerializer):
     ID = 0x03
@@ -256,7 +277,9 @@ class LevelInitialize(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serializeDone(self):
-        chunk = self._protocol.factory.world.serialize()
+        chunk = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id).serialize()
+
         chunks = [chunk[i: i + 1024] for i in xrange(0, len(chunk), 1024)]
 
         for chunkCount, chunk in enumerate(chunks):
@@ -276,11 +299,18 @@ class ServerIdentification(PacketSerializer):
     ID = 0x00
     DIRECTION = 'upstream'
 
-    def serialize(self):
+    def serialize(self, username=None, worldName=None):
         self._dataBuffer.writeByte(0x07)
         self._dataBuffer.writeString('A Minecraft classic server!')
         self._dataBuffer.writeString('Welcome to the custom Mineserver!')
         self._dataBuffer.writeByte(0x00)
+
+        if not worldName:
+            world = self._protocol.factory.worldManager.getMainWorld()
+        else:
+            world = self._protocol.factory.worldManager.getWorld(worldName)
+
+        world.addPlayer(self._protocol, username)
 
         return True
 
@@ -305,8 +335,8 @@ class PlayerIdentification(PacketSerializer):
 
             return
 
-        self._protocol.factory.addPlayer(self._protocol, username)
-        self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID)
+        self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
+            username=username)
 
 class PacketDispatcher(object):
 
