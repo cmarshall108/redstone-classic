@@ -108,13 +108,13 @@ class EntityManager(object):
         return self._entities
 
     def addEntity(self, entity):
-        if entity in self._entities:
+        if entity.id in self._entities:
             return
 
         self._entities[entity.id] = entity
 
     def removeEntity(self, entity):
-        if entity not in self._entities:
+        if entity.id not in self._entities:
             return
 
         del self._entities[entity.id]
