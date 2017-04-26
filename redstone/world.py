@@ -88,6 +88,9 @@ class World(object):
     def setBlock(self, x, y, z, block):
         self._blockData[x + self.DEPTH * (z + self.WIDTH * y)] = block
 
+        # save the data to the world file on block change
+        self.save()
+
     def serialize(self):
         return compress(struct.pack('!I', len(self._blockData)) + bytes(self._blockData))
 
@@ -136,6 +139,10 @@ class World(object):
         # now just broadcast the player to any clients connected, but do not broadcast this packet
         # to the protocol in which owns the player entity.
         self._worldManager.broadcast(self, SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
+
+    def save(self):
+        self._worldManager.write(self._worldManager.getFilePath(self.name), 'wb',
+            self.serialize())
 
     @staticmethod
     def load(data):
