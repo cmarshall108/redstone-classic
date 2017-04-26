@@ -90,13 +90,17 @@ class ClientMessage(PacketSerializer):
 
     def deserialize(self, dataBuffer):
         try:
-            unused = dataBuffer.readByte()
+            playerId = dataBuffer.readByte()
             message = dataBuffer.readString()
         except:
             self._protocol.handleDisconnect()
             return
 
-        entity = self._protocol.entity
+        playerId = self._protocol.entity.id if playerId == 255 else playerId
+        entity = self._protocol.factory.entityManager.getEntity(playerId)
+
+        if not entity:
+            return
 
         message = '%s: %s' % (entity.username, message)
 

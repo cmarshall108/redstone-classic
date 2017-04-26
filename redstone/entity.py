@@ -97,7 +97,7 @@ class EntityManager(object):
 
         self._factory = factory
         self._allocator = UniqueIdAllocator()
-        self._entities = []
+        self._entities = {}
 
     @property
     def allocator(self):
@@ -111,10 +111,13 @@ class EntityManager(object):
         if entity in self._entities:
             return
 
-        self._entities.append(entity)
+        self._entities[entity.id] = entity
 
     def removeEntity(self, entity):
         if entity not in self._entities:
             return
 
-        self._entities.remove(entity)
+        del self._entities[entity.id]
+
+    def getEntity(self, entityId):
+        return self._entities.get(entityId)

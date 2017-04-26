@@ -197,7 +197,7 @@ class NetworkFactory(ServerFactory):
         protocol.entity = None
 
     def updatePlayers(self, protocol):
-        for entity in self._entityManager.entities:
+        for (entityId, entity) in self._entityManager.entities.items():
             if entity.id == protocol.entity.id:
                 continue
 
