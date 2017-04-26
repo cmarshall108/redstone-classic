@@ -98,7 +98,7 @@ class ClientMessage(PacketSerializer):
 
         entity = self._protocol.entity
 
-        message = '<%s> %s' % (entity.username, message)
+        message = '%s: %s' % (entity.username, message)
 
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
             entity.id, message)
