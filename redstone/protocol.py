@@ -65,6 +65,20 @@ class ClientMessage(PacketSerializer):
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
             entity.id, message)
 
+class PositionAndOrientationInit(PacketSerializer):
+    ID = 0x08
+    DIRECTION = 'upstream'
+
+    def serialize(self, entityId, x, y, z, yaw, pitch):
+        self._dataBuffer.writeSByte(entityId)
+        self._dataBuffer.writeShort(x)
+        self._dataBuffer.writeShort(y)
+        self._dataBuffer.writeShort(z)
+        self._dataBuffer.writeByte(yaw)
+        self._dataBuffer.writeByte(pitch)
+
+        return True
+
 class PositionAndOrientationUpdate(PacketSerializer):
     ID = 0x09
     DIRECTION = 'upstream'
@@ -107,16 +121,23 @@ class PositionAndOrientation(PacketSerializer):
         changeY = entity.y - y
         changeZ = entity.z - z
 
+        changeX = -changeX * 32.0
+        changeY = -changeY * 32.0
+        changeZ = -changeZ * 32.0
+
         entity.x = x
         entity.y = y
         entity.z = z
+
+        changeYaw = entity.yaw - yaw
+        changePitch = entity.pitch - pitch
 
         entity.yaw = yaw
         entity.pitch = pitch
 
         self._protocol.factory.broadcast(PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [
-            self._protocol], self._protocol.entity.id if playerId == 255 else playerId,
-                changeX, changeY, changeZ, entity.yaw, entity.pitch)
+            self._protocol], self._protocol.entity.id if playerId == 255 else playerId, changeX,
+                changeY, changeZ, entity.yaw, entity.pitch)
 
 class DisconnectPlayer(PacketSerializer):
     ID = 0x0e
@@ -148,9 +169,9 @@ class SpawnPlayer(PacketSerializer):
     def serialize(self, entity):
         self._dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
         self._dataBuffer.writeString(entity.username)
-        self._dataBuffer.writeShort(entity.x)
-        self._dataBuffer.writeShort(entity.y)
-        self._dataBuffer.writeShort(entity.z)
+        self._dataBuffer.writeShort(entity.x * 32.0)
+        self._dataBuffer.writeShort(entity.y * 32.0)
+        self._dataBuffer.writeShort(entity.z * 32.0)
         self._dataBuffer.writeByte(entity.yaw)
         self._dataBuffer.writeByte(entity.pitch)
 
@@ -265,6 +286,7 @@ class PacketDispatcher(object):
                 LevelFinalize.ID: LevelFinalize,
                 SpawnPlayer.ID: SpawnPlayer,
                 DespawnPlayer.ID: DespawnPlayer,
+                PositionAndOrientationInit.ID: PositionAndOrientationInit,
                 PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
                 ServerMessage.ID: ServerMessage,
                 DisconnectPlayer.ID: DisconnectPlayer,

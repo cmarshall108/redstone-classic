@@ -172,6 +172,10 @@ class NetworkFactory(ServerFactory):
         playerEntity.id = self.entityManager.allocator.allocate()
         playerEntity.username = username
 
+        playerEntity.x = 65
+        playerEntity.y = 65
+        playerEntity.z = 65
+
         # set the protocols entity object
         protocol.entity = playerEntity
 
