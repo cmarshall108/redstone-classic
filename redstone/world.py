@@ -9,6 +9,7 @@ import gzip
 import io
 import os
 import json
+from redstone.logging import Logger as logger
 from redstone.entity import Entity, PlayerEntity, EntityManager
 from redstone.protocol import SpawnPlayer, DespawnPlayer
 
@@ -106,6 +107,8 @@ class World(object):
         # add the player entity to the entity manager
         self._entityManager.addEntity(playerEntity)
 
+        logger.info('%s joined world %s' % (playerEntity.username, self.name))
+
     def removePlayer(self, protocol):
         # remove the protocols entity from the entity manager
         self._entityManager.removeEntity(protocol.entity)
@@ -113,6 +116,8 @@ class World(object):
         # update all entities for all players except for the entities owner.
         self._worldManager.broadcast(self, DespawnPlayer.DIRECTION, DespawnPlayer.ID,
             [protocol], protocol.entity)
+
+        logger.info('%s left world %s' % (protocol.entity.username, self.name))
 
         # remove the entity from the protocol
         protocol.entity = None
@@ -208,13 +213,13 @@ class WorldManagerIO(object):
             # close the file object instance
             fileobj.close()
 
-    def create(self, filename):
-        pass
+    def create(self, worldName):
+        logger.info('Creating new world [%s]...' % worldName)
 
-    def load(self, filename):
-        pass
+    def load(self, worldName):
+        logger.info('Loading world [%s]...' % worldName)
 
-    def delete(self, filename):
+    def delete(self, worldName):
         pass
 
     def remove(self):
@@ -285,6 +290,8 @@ class WorldManager(WorldManagerIO):
         return self._worlds.get(name)
 
     def create(self, worldName):
+        super(WorldManager, self).create(worldName)
+
         # setup a new world instance and generate the block data.
         world = World(self, worldName)
 
@@ -295,6 +302,8 @@ class WorldManager(WorldManagerIO):
         self.addWorld(world)
 
     def load(self, worldName):
+        super(WorldManager, self).load(worldName)
+
         # open the world file and load the world data into memory
         world = World(self, worldName, World.load(self.read(self.getFilePath(worldName), 'rb')))
 

@@ -5,6 +5,7 @@
  """
 
 from twisted.internet.protocol import Protocol, ServerFactory
+from redstone.logging import Logger as logger
 from redstone.util import DataBuffer
 from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
 from redstone.world import WorldManager
@@ -140,9 +141,15 @@ class NetworkFactory(ServerFactory):
         return self._worldManager
 
     def startFactory(self):
+        logger.info('Starting up, please wait...')
+
         self._worldManager.setup()
 
+        logger.info('Done.')
+
     def stopFactory(self):
+        logger.info('Shutting down, please wait...')
+
         # disconnect and remove all players on the server
         self.disconnect()
 
