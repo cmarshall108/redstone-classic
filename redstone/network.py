@@ -7,7 +7,7 @@
 from callbacks import supports_callbacks
 from twisted.internet.protocol import Protocol, ServerFactory
 from redstone.util import DataBuffer
-from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer
+from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
 from redstone.world import World
 from redstone.entity import Entity, PlayerEntity, EntityManager
 
@@ -146,7 +146,8 @@ class NetworkFactory(ServerFactory):
         pass
 
     def stopFactory(self):
-        pass
+        # disconnect and remove all players on the server
+        self.disconnect()
 
     def addProtocol(self, protocol):
         if protocol in self._protocols:
@@ -213,6 +214,10 @@ class NetworkFactory(ServerFactory):
         # now just broadcast the player to any clients connected, but do not broadcast this packet
         # to the protocol in which owns the player entity.
         self.broadcast(SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
+
+    def disconnect(self):
+        # disconnect all players since the server is shutting down.
+        self.broadcast(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID, [], 'Server closed.')
 
     def broadcast(self, direction, packetId, exceptions, *args, **kw):
         for protocol in self._protocols:
