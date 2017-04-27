@@ -334,7 +334,7 @@ class PlayerIdentification(PacketSerializer):
 
         if self._protocol.entity is not None:
             self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'You are already authenticated in game!')
+                'You are already logged in!')
 
             return
 
@@ -413,4 +413,4 @@ class PacketDispatcher(object):
             packet.serializeDone()
 
     def handleDiscard(self, packetId):
-        print 'discard packet ', packetId
+        pass
