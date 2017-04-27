@@ -131,7 +131,7 @@ class CommandList(CommandSerializer):
             for world in self._protocol.factory.worldManager.worlds.values():
                 worlds.append(world.name)
 
-            return ''.join(['%s,' % world for world in worlds]) + ''
+            return ''.join(['%s,' % world for world in worlds])
 
         if listType == 'players':
             return getPlayers()
