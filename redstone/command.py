@@ -41,6 +41,9 @@ class CommandGoto(CommandSerializer):
         if not currentWorld:
             return 'Failed to teleport to world %s!' % world
 
+        if currentWorld.name == targetWorld.name:
+            return 'You cannot teleport to a world you\'re already in!'
+
         currentWorld.removePlayer(self._protocol)
 
         # teleport the client to the new world
