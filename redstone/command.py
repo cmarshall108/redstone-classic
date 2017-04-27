@@ -4,7 +4,6 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-import cStringIO
 from redstone.protocol import PositionAndOrientationStatic
 
 class CommandSerializer(object):
