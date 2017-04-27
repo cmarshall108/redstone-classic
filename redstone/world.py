@@ -126,19 +126,14 @@ class World(object):
         protocol.entity = None
 
     def updatePlayers(self, protocol):
-        for (entityId, entity) in self._entityManager.entities.items():
+        for entity in self._entityManager.entities.values():
             if entity.world != self.name:
                 continue
 
             protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, entity)
 
-    def updatePlayer(self, protocol):
-        # first update our own entity for the client
-        protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, protocol.entity)
-
-        # now just broadcast the player to any clients connected, but do not broadcast this packet
-        # to the protocol in which owns the player entity.
-        self._worldManager.broadcast(self, SpawnPlayer.DIRECTION, SpawnPlayer.ID, [protocol], protocol.entity)
+        # now send update for owned entity
+        self._worldManager.broadcast(self, SpawnPlayer.DIRECTION, SpawnPlayer.ID, [], protocol.entity)
 
     def save(self):
         self._worldManager.write(self._worldManager.getFilePath(self.name), 'wb',

@@ -193,14 +193,15 @@ class PositionAndOrientation(PacketSerializer):
         entity.yaw = yaw
         entity.pitch = pitch
 
+        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
+
         # the player is moving to fast, teleport them to the x,y,z cordinates
         if changeX < -128 or changeX > 127 or changeY < -128 or changeY > 127 or changeZ < -128 or changeZ > 127:
-            self._protocol.factory.broadcast(PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [self._protocol],
+            self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [self._protocol],
                 entity.id, entity.x, entity.y, entity.z, entity.yaw, entity.pitch)
 
             return
 
-        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
         self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [self._protocol],
             self._protocol.entity.id if playerId == 255 else playerId, changeX, changeY, changeZ, entity.yaw, entity.pitch)
 
@@ -247,8 +248,7 @@ class LevelFinalize(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self):
-        world = self._protocol.factory.worldManager.getWorldFromEntity(
-            self._protocol.entity.id)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
 
         self._dataBuffer.writeShort(world.width)
         self._dataBuffer.writeShort(world.height)
@@ -257,16 +257,10 @@ class LevelFinalize(PacketSerializer):
         return True
 
     def serializeDone(self):
-        world = self._protocol.factory.worldManager.getWorldFromEntity(
-            self._protocol.entity.id)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
 
-        # the client has just joined the game, update the entities
-        # within the clients world they are currently in.
+        # update all players within the world we're currently going to
         world.updatePlayers(self._protocol)
-
-        # now update our player and send then entity data
-        # to all existing clients in that world
-        world.updatePlayer(self._protocol)
 
 class LevelDataChunk(PacketSerializer):
     ID = 0x03
