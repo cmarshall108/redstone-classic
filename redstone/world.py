@@ -247,6 +247,10 @@ class WorldManager(WorldManagerIO):
     def factory(self):
         return self._factory
 
+    @property
+    def worlds(self):
+        return self._worlds
+
     def broadcast(self, world, direction, packetId, exceptions, *args, **kw):
 
         for protocol in self._factory.protocols:
@@ -264,7 +268,7 @@ class WorldManager(WorldManagerIO):
         return self._worlds[self._mainWorldName]
 
     def getWorldFromEntity(self, entityId):
-        for (worldName, world) in self._worlds.items():
+        for world in self._worlds.values():
             if not world.entityManager.hasEntity(entityId):
                 continue
 
@@ -273,11 +277,19 @@ class WorldManager(WorldManagerIO):
         return None
 
     def getEntityFromWorld(self, entityId):
-        for (worldName, world) in self._worlds.items():
+        for world in self._worlds.values():
             if not world.entityManager.hasEntity(entityId):
                 continue
 
             return world.entityManager.getEntity(entityId)
+
+        return None
+
+    def getEntityFromUsername(self, username):
+        for world in self._worlds.values():
+            for entity in world.entityManager.entities.values():
+                if entity.username == username:
+                    return entity
 
         return None
 

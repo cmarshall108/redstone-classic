@@ -4,7 +4,7 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-from redstone.util import DataBuffer
+from redstone.util import DataBuffer, clamp
 from redstone.logging import Logger as logger
 
 class PacketSerializer(object):
@@ -106,18 +106,15 @@ class ClientMessage(PacketSerializer):
         if not entity:
             return
 
-        # command for testing multiple worlds, to be removed later
-        world = self._protocol.factory.worldManager.getWorldFromEntity(entity.id)
-        username = entity.username
+        if self._protocol.commandParser.isCommand(message):
+            response = self._protocol.commandParser.parse(message)
 
-        if message == '/goto main':
-            world.removePlayer(self._protocol)
-            self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
-                username=username, worldName='main')
-        elif message == '/goto testing':
-            world.removePlayer(self._protocol)
-            self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
-                username=username, worldName='testing')
+            # do not broadcast the command response send the response
+            # only to the local client.
+            self._dispatcher.handleDispatch(ServerMessage.DIRECTION, ServerMessage.ID,
+                entity.id, response)
+
+            return
 
         message = '%s: %s' % (entity.username, message)
 
@@ -126,15 +123,15 @@ class ClientMessage(PacketSerializer):
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
             entity.id, message)
 
-class PositionAndOrientationInit(PacketSerializer):
+class PositionAndOrientationStatic(PacketSerializer):
     ID = 0x08
     DIRECTION = 'upstream'
 
     def serialize(self, entityId, x, y, z, yaw, pitch):
-        self._dataBuffer.writeSByte(entityId)
-        self._dataBuffer.writeShort(x)
-        self._dataBuffer.writeShort(y)
-        self._dataBuffer.writeShort(z)
+        self._dataBuffer.writeSByte(-1 if entityId == self._protocol.entity.id else entityId)
+        self._dataBuffer.writeShort(x * 32.0)
+        self._dataBuffer.writeShort(y * 32.0)
+        self._dataBuffer.writeShort(z * 32.0)
         self._dataBuffer.writeByte(yaw)
         self._dataBuffer.writeByte(pitch)
 
@@ -195,6 +192,13 @@ class PositionAndOrientation(PacketSerializer):
 
         entity.yaw = yaw
         entity.pitch = pitch
+
+        # the player is moving to fast, teleport them to the x,y,z cordinates
+        if changeX < -128 or changeX > 127 or changeY < -128 or changeY > 127 or changeZ < -128 or changeZ > 127:
+            self._protocol.factory.broadcast(PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [self._protocol],
+                entity.id, entity.x, entity.y, entity.z, entity.yaw, entity.pitch)
+
+            return
 
         world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
         self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [self._protocol],
@@ -362,7 +366,7 @@ class PacketDispatcher(object):
                 LevelFinalize.ID: LevelFinalize,
                 SpawnPlayer.ID: SpawnPlayer,
                 DespawnPlayer.ID: DespawnPlayer,
-                PositionAndOrientationInit.ID: PositionAndOrientationInit,
+                PositionAndOrientationStatic.ID: PositionAndOrientationStatic,
                 PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
                 ServerMessage.ID: ServerMessage,
                 SetBlockServer.ID: SetBlockServer,

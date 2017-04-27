@@ -9,6 +9,7 @@ from redstone.logging import Logger as logger
 from redstone.util import DataBuffer
 from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
 from redstone.world import WorldManager
+from redstone.command import CommandParser
 
 class NetworkTransportBuffer(object):
 
@@ -79,6 +80,7 @@ class NetworkProtocol(Protocol):
     def __init__(self):
         self._transportBuffer = NetworkTransportBuffer(self)
         self._dispatcher = PacketDispatcher(self)
+        self._commandParser = CommandParser(self)
         self._entity = None
 
     @property
@@ -88,6 +90,10 @@ class NetworkProtocol(Protocol):
     @property
     def dispatcher(self):
         return self._dispatcher
+
+    @property
+    def commandParser(self):
+        return self._commandParser
 
     @property
     def entity(self):

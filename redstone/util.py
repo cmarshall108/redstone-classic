@@ -83,3 +83,6 @@ class DataBuffer(object):
             outByteArray += '\x00'
 
         self.write(outByteArray)
+
+def clamp(value, minV, maxV):
+    return max(minV, min(value, maxV))
