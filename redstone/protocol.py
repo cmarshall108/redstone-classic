@@ -334,7 +334,13 @@ class PlayerIdentification(PacketSerializer):
 
         if self._protocol.entity is not None:
             self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'Cheat detected: You already have a player entity!')
+                'You are already authenticated in game!')
+
+            return
+
+        if self._protocol.factory.worldManager.getEntityFromUsername(username):
+            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
+                'There is already a player logged in with that username!')
 
             return
 
