@@ -4,7 +4,8 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-from redstone.protocol import PositionAndOrientationStatic
+from redstone.logging import Logger as logger
+from redstone.protocol import PositionAndOrientationStatic, ServerIdentification
 
 class CommandSerializer(object):
     KEYWORD = None
@@ -21,6 +22,59 @@ class CommandSerializer(object):
     def serializeDone(self):
         pass
 
+class CommandGoto(CommandSerializer):
+    KEYWORD = 'goto'
+
+    def serialize(self, world):
+        entity = self._protocol.entity
+
+        if not entity:
+            return 'Failed to teleport to world %s!' % world
+
+        targetWorld = self._protocol.factory.worldManager.getWorld(world)
+
+        if not targetWorld:
+            return 'Failed to teleport to world, %s doesn\'t exist!' % world
+
+        currentWorld = self._protocol.factory.worldManager.getWorld(entity.world)
+
+        if not currentWorld:
+            return 'Failed to teleport to world %s!' % world
+
+        currentWorld.removePlayer(self._protocol)
+
+        # teleport the client to the new world
+        self._protocol.dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
+            entity.username, targetWorld.name)
+
+        return 'Successfully teleported %s to world %s' % (entity.username, targetWorld.name)
+
+class CommandSaveAll(CommandSerializer):
+    KEYWORD = 'saveall'
+
+    def serialize(self):
+        for world in self._protocol.factory.worldManager.worlds.values():
+            world.save()
+
+        return 'Successfully saved all worlds.'
+
+class CommandSave(CommandSerializer):
+    KEYWORD = 'save'
+
+    def serialize(self):
+        entity = self._protocol.entity
+
+        if not entity:
+            return 'Failed to save world!'
+
+        world = self._protocol.factory.worldManager.getWorld(entity.world)
+
+        if not world:
+            return 'Failed to save world!'
+
+        world.save()
+        return 'Successfully saved world %s.' % world.name
+
 class CommandTeleport(CommandSerializer):
     KEYWORD = 'tp'
 
@@ -33,6 +87,9 @@ class CommandTeleport(CommandSerializer):
 
         if not targetEntity:
             return 'Failed to find target player %s' % target
+
+        if senderEntity.id == targetEntity.id:
+            return 'You cannot teleport to your self!'
 
         x = targetEntity.x
         y = targetEntity.y
@@ -48,7 +105,7 @@ class CommandTeleport(CommandSerializer):
         self._protocol.factory.broadcast(PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [],
             senderEntity.id, x, y, z, yaw, pitch)
 
-        return 'Successfully teleported %s to %s' % (sender, target)
+        return 'Successfully teleported %s to %s.' % (sender, target)
 
 class CommandList(CommandSerializer):
     KEYWORD = 'list'
@@ -70,12 +127,16 @@ class CommandDispatcher(object):
 
         self._protocol = protocol
         self._commands = {
+            CommandGoto.KEYWORD: CommandGoto,
+            CommandSaveAll.KEYWORD: CommandSaveAll,
+            CommandSave.KEYWORD: CommandSave,
             CommandTeleport.KEYWORD: CommandTeleport,
             CommandList.KEYWORD: CommandList,
         }
 
     def handleDispatch(self, keyword, arguments):
         if keyword not in self._commands:
+            self.handleDiscard(keyword)
             return 'Couldn\'t execute unknown command %s!' % keyword
 
         command = self._commands[keyword](self._protocol, self)
@@ -101,18 +162,16 @@ class CommandParser(object):
     def isCommand(self, string):
         return string.startswith(self.KEYWORD)
 
-    def parse(self, string):
+    def parse(self, string, entity):
         keywords = string[1:].split(' ')
 
         if not len(keywords):
             return 'Couldn\'t parse invalid command!'
 
         command, = keywords[:1]
+        arguments = keywords[1:]
 
-        if not len(keywords):
-            arguments = []
-        else:
-            arguments = keywords[1:]
+        logger.info('%s issued server command %s' % (entity.username, command))
 
         # attempt to execute the command
         return self._dispatcher.handleDispatch(command, arguments)

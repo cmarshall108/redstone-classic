@@ -100,14 +100,13 @@ class ClientMessage(PacketSerializer):
             self._protocol.handleDisconnect()
             return
 
-        playerId = self._protocol.entity.id if playerId == 255 else playerId
-        entity = self._protocol.factory.worldManager.getEntityFromWorld(playerId)
+        entity = self._protocol.entity
 
         if not entity:
             return
 
         if self._protocol.commandParser.isCommand(message):
-            response = self._protocol.commandParser.parse(message)
+            response = self._protocol.commandParser.parse(message, entity)
 
             # do not broadcast the command response send the response
             # only to the local client.
@@ -174,6 +173,9 @@ class PositionAndOrientation(PacketSerializer):
         # update the players x,y,z,yaw,pitch and subtract the current value
         # from the last known value to get the new location change.
         entity = self._protocol.entity
+
+        if not entity:
+            return
 
         changeX = entity.x - x
         changeY = entity.y - y
