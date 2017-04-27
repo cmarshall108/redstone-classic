@@ -113,15 +113,32 @@ class CommandTeleport(CommandSerializer):
 class CommandList(CommandSerializer):
     KEYWORD = 'list'
 
-    def serialize(self):
-        numPlayerOnline = 0
+    def serialize(self, listType):
 
-        for world in self._protocol.factory.worldManager.worlds.values():
-            for entity in world.entityManager.entities.values():
-                if entity.isPlayer():
-                    numPlayerOnline += 1
+        def getPlayers():
+            numPlayerOnline = 0
 
-        return 'There are currently %d players online.' % numPlayerOnline
+            for world in self._protocol.factory.worldManager.worlds.values():
+                for entity in world.entityManager.entities.values():
+                    if entity.isPlayer():
+                        numPlayerOnline += 1
+
+            return 'There are currently %d players online.' % numPlayerOnline
+
+        def getWorlds():
+            worlds = []
+
+            for world in self._protocol.factory.worldManager.worlds.values():
+                worlds.append(world.name)
+
+            return ''.join(['%s,' % world for world in worlds]) + ''
+
+        if listType == 'players':
+            return getPlayers()
+        elif listType == 'worlds':
+            return getWorlds()
+
+        return 'Unknown command argument specified %s!' % listType
 
 class CommandDispatcher(object):
 
