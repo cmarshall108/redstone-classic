@@ -302,7 +302,7 @@ class ServerIdentification(PacketSerializer):
     ID = 0x00
     DIRECTION = 'upstream'
 
-    def serialize(self, username=None, worldName=None):
+    def serialize(self, username, worldName=None):
         self._dataBuffer.writeByte(0x07)
         self._dataBuffer.writeString('A Minecraft classic server!')
         self._dataBuffer.writeString('Welcome to the custom Mineserver!')
@@ -344,8 +344,7 @@ class PlayerIdentification(PacketSerializer):
 
             return
 
-        self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
-            username=username)
+        self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID, username)
 
 class PacketDispatcher(object):
 
