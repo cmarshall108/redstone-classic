@@ -7,10 +7,6 @@
 from twisted.internet import reactor
 from redstone.network import NetworkFactory
 
-from twisted.internet import reactor
-
-reactor.suggestThreadPoolSize(30)
-
 class MinecraftServer(object):
     reactor = reactor
 
