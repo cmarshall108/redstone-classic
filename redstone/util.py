@@ -90,3 +90,7 @@ class DataBuffer(object):
 
 def clamp(value, minV, maxV):
     return max(minV, min(value, maxV))
+
+class Mouse(object):
+    LEFT_CLICK = 0
+    RIGHT_CLICK = 1

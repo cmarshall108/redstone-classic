@@ -11,8 +11,6 @@ from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, Disc
 from redstone.world import WorldManager
 from redstone.command import CommandParser
 
-import threading
-
 class NetworkTransportBuffer(object):
 
     def __init__(self, protocol):

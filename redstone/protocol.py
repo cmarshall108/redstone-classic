@@ -329,7 +329,7 @@ class PlayerIdentification(PacketSerializer):
             protocolVersion = dataBuffer.readByte()
             username = dataBuffer.readString()
             verificationKey = dataBuffer.readString()
-            unused = dataBuffer.readByte()
+            protocolType = dataBuffer.readByte()
         except:
             self._protocol.handleDisconnect()
             return
