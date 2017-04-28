@@ -4,6 +4,8 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
+from redstone.util import PlayerRanks
+
 class Entity(object):
 
     def __init__(self):
@@ -16,6 +18,7 @@ class Entity(object):
         self._yaw = 0
         self._pitch = 0
         self._world = ''
+        self._rank = PlayerRanks.GUEST
 
     def isPlayer(self):
         return False
@@ -60,6 +63,22 @@ class Entity(object):
     def pitch(self, pitch):
         self._pitch = pitch
 
+    @property
+    def world(self):
+        return self._world
+
+    @world.setter
+    def world(self, world):
+        self._world = world
+
+    @property
+    def rank(self):
+        return self._rank
+
+    @rank.setter
+    def rank(self, rank):
+        self._rank = rank
+
 class PlayerEntity(Entity):
 
     def __init__(self):
@@ -74,14 +93,6 @@ class PlayerEntity(Entity):
     @username.setter
     def username(self, username):
         self._username = username
-
-    @property
-    def world(self):
-        return self._world
-
-    @world.setter
-    def world(self, world):
-        self._world = world
 
     def isPlayer(self):
         return True

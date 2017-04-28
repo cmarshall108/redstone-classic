@@ -116,9 +116,6 @@ class NetworkProtocol(Protocol):
                 self.handleDisconnect()
                 return
 
-            if packetId == 0x0d:
-                print dataBuffer.data
-
             self.handlePacket(packetId, dataBuffer)
 
     def handlePacket(self, packetId, dataBuffer):

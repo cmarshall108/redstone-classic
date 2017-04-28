@@ -4,7 +4,7 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-from redstone.util import DataBuffer, clamp
+from redstone.util import DataBuffer, PlayerRanks, ChatColors
 from redstone.logging import Logger as logger
 
 class PacketSerializer(object):
@@ -115,12 +115,26 @@ class ClientMessage(PacketSerializer):
 
             return
 
-        message = '%s: %s' % (entity.username, message)
+        logger.info('%s: %s' % (entity.username, message))
 
-        logger.info(message)
+        message = '%s: %s' % ('%s%s%s' % (self.getColorFromRank(entity), entity.username, ChatColors.WHITE),
+            self.sanitize(message))
 
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
             entity.id, message)
+
+    def sanitize(self, message):
+        # if a client sends an ampersand at the end of the message
+        # this can crash the original minecraft classic client
+        # remove this character from the end of the message.
+        if message.endswith('&'):
+            message = message[:len(message) - 1]
+
+        return message
+
+    def getColorFromRank(self, entity):
+        if entity.rank == PlayerRanks.GUEST:
+            return ChatColors.DARK_GRAY
 
 class PositionAndOrientationStatic(PacketSerializer):
     ID = 0x08

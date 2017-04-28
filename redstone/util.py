@@ -94,3 +94,25 @@ def clamp(value, minV, maxV):
 class Mouse(object):
     LEFT_CLICK = 0
     RIGHT_CLICK = 1
+
+class ChatColors(object):
+    BLACK = '&'
+    DARK_BLUE = '&1'
+    DARK_GREEN = '&2'
+    DARK_TEAL = '&3'
+    DARK_RED = '&4'
+    PURPLE = '&5'
+    GOLD = '&6'
+    GRAY = '&7'
+    DARK_GRAY = '&8'
+    BLUE = '&9'
+    BRIGHT_GREEN = '&a'
+    TEAL = '&b'
+    RED = '&c'
+    PINK = '&d'
+    YELLOW = '&e'
+    WHITE = '&f'
+
+class PlayerRanks(object):
+    GUEST = 0
+    ADMINISTRATOR = 1
