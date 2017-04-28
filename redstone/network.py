@@ -11,6 +11,8 @@ from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, Disc
 from redstone.world import WorldManager
 from redstone.command import CommandParser
 
+import threading
+
 class NetworkTransportBuffer(object):
 
     def __init__(self, protocol):
@@ -107,19 +109,19 @@ class NetworkProtocol(Protocol):
         self.factory.addProtocol(self)
 
     def dataReceived(self, data):
-        if not len(data):
-            return
+        dataBuffer = DataBuffer(data)
 
-        self.handleIncoming(DataBuffer(data))
+        while len(dataBuffer.remaining):
+            try:
+                packetId = dataBuffer.readByte()
+            except:
+                self.handleDisconnect()
+                return
 
-    def handleIncoming(self, dataBuffer):
-        try:
-            packetId = dataBuffer.readByte()
-        except:
-            self.handleDisconnect()
-            return
+            if packetId == 0x0d:
+                print dataBuffer.data
 
-        self.handlePacket(packetId, dataBuffer)
+            self.handlePacket(packetId, dataBuffer)
 
     def handlePacket(self, packetId, dataBuffer):
         self._dispatcher.handleDispatch('downstream', packetId, dataBuffer)

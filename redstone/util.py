@@ -22,6 +22,10 @@ class DataBuffer(object):
     def offset(self):
         return self._offset
 
+    @property
+    def remaining(self):
+        return self._data[self._offset:]
+
     def write(self, data):
         if not len(data):
             return

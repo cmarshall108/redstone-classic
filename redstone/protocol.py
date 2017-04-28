@@ -328,8 +328,10 @@ class PlayerIdentification(PacketSerializer):
         try:
             protocolVersion = dataBuffer.readByte()
             username = dataBuffer.readString()
+            verificationKey = dataBuffer.readString()
+            unused = dataBuffer.readByte()
         except:
-            self._protocol.closeConnection()
+            self._protocol.handleDisconnect()
             return
 
         if self._protocol.entity is not None:
@@ -413,4 +415,4 @@ class PacketDispatcher(object):
             packet.serializeDone()
 
     def handleDiscard(self, packetId):
-        pass
+        logger.warning('Discarding incoming packet %d!' % packetId)
