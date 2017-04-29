@@ -23,6 +23,28 @@ class CommandSerializer(object):
     def serializeDone(self):
         pass
 
+class CommandMute(CommandSerializer):
+    KEYWORD = 'mute'
+
+    def serialize(self, target):
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
+            return 'You don\'t have access to use this command!'
+
+        targetEntity = self._protocol.factory.worldManager.getEntityFromUsername(target)
+
+        if not targetEntity:
+            return 'Failed to mute/unmute unknown player %s!' % target
+
+        if not targetEntity.isPlayer():
+            return 'Failed to mute non player %s!' % target
+
+        if targetEntity.muted:
+            targetEntity.muted = False
+        else:
+            targetEntity.muted = True
+
+        return 'Successfully muted %s.' % target
+
 class CommandKick(CommandSerializer):
     KEYWORD = 'kick'
 
@@ -191,6 +213,7 @@ class CommandDispatcher(object):
 
         self._protocol = protocol
         self._commands = {
+            CommandMute.KEYWORD: CommandMute,
             CommandKick.KEYWORD: CommandKick,
             CommandSay.KEYWORD: CommandSay,
             CommandGoto.KEYWORD: CommandGoto,

@@ -90,6 +90,7 @@ class PlayerEntity(Entity):
         super(PlayerEntity, self).__init__(protocol)
 
         self._username = ''
+        self._muted = False
 
     @property
     def username(self):
@@ -98,6 +99,14 @@ class PlayerEntity(Entity):
     @username.setter
     def username(self, username):
         self._username = username
+
+    @property
+    def muted(self):
+        return self._muted
+
+    @muted.setter
+    def muted(self, muted):
+        self._muted = muted
 
     def isPlayer(self):
         return True

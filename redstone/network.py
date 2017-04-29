@@ -4,6 +4,7 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
+import random
 import urllib
 import urllib2
 
@@ -40,13 +41,12 @@ class NetworkPinger(object):
             'name': 'The Redstone Project Classic Server',
             'public': True,
             'version': 7,
-            'salt': '123456789abcdefg',
+            'salt': self._factory.salt,
             'users': self.getNumPlayers(),
             'software': 'Redstone-Crafted',
         }
 
         request = urllib2.Request(url, urllib.urlencode(fields))
-        request.add_header('User-Agent', 'Redstone-Crafted')
 
         try:
             response = urllib2.urlopen(request).read()
@@ -174,12 +174,25 @@ class NetworkFactory(ServerFactory):
 
     def __init__(self):
         self._protocols = []
+        self._salt = ''
         self._worldManager = WorldManager(self)
         self._pinger = NetworkPinger(self)
 
     @property
     def protocols(self):
         return self._protocols
+
+    @property
+    def salt(self):
+        return self._salt
+
+    @salt.setter
+    def salt(self, salt):
+        self.salt = salt
+
+    def generateSalt(self, length=16):
+        return ''.join([random.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz') \
+            for _ in xrange(length)])
 
     @property
     def worldManager(self):
@@ -189,6 +202,9 @@ class NetworkFactory(ServerFactory):
         logger.info('Starting up, please wait...')
 
         self._worldManager.setup()
+
+        # generate a random base62 verification salt
+        self.salt = self.generateSalt()
 
         logger.info('Done.')
 

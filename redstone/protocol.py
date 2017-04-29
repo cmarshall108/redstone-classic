@@ -4,6 +4,9 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
+import hashlib
+import hmac
+
 from redstone.util import DataBuffer, PlayerRanks, ChatColors, BlockIds, Mouse
 from redstone.logging import Logger as logger
 
@@ -105,6 +108,9 @@ class ClientMessage(PacketSerializer):
         if not entity:
             return
 
+        if entity.muted:
+            return
+
         if self._protocol.commandParser.isCommand(message):
             response = self._protocol.commandParser.parse(message, entity)
 
@@ -146,6 +152,9 @@ class PositionAndOrientationStatic(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self, entityId, x, y, z, yaw, pitch):
+        if not self._protocol.entity:
+            return
+
         self._dataBuffer.writeSByte(-1 if entityId == self._protocol.entity.id else entityId)
         self._dataBuffer.writeShort(x * 32.0)
         self._dataBuffer.writeShort(y * 32.0)
@@ -254,6 +263,9 @@ class SpawnPlayer(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self, entity):
+        if not self._protocol.entity:
+            return
+
         self._dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
         self._dataBuffer.writeString(entity.username)
         self._dataBuffer.writeShort(entity.x * 32.0)
@@ -326,7 +338,7 @@ class ServerIdentification(PacketSerializer):
         self._dataBuffer.writeString('A Minecraft classic server!')
         self._dataBuffer.writeString('Welcome to the custom Mineserver!')
 
-        if username == 'BonemealPioneer':
+        if username == 'BonemealPioneer' or username == 'Owen_':
             isOp = 0x64
         else:
             isOp = 0x00
@@ -373,6 +385,15 @@ class PlayerIdentification(PacketSerializer):
         if self._protocol.factory.worldManager.getEntityFromUsername(username):
             self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
                 'There is already a player logged in with that username!')
+
+            return
+
+        digester = hashlib.md5()
+        digester.update(self._protocol.factory.salt + username)
+
+        if not hmac.compare_digest(verificationKey, digester.hexdigest()):
+            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
+                'You\'re forging your username!')
 
             return
 
