@@ -4,6 +4,7 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
+from twisted.internet import task, reactor
 from redstone.logging import Logger as logger
 from redstone.util import PlayerRanks, ChatColors, joinWithSpaces
 from redstone.protocol import PositionAndOrientationStatic, ServerIdentification, ServerMessage, DisconnectPlayer
@@ -26,7 +27,7 @@ class CommandSerializer(object):
 class CommandMute(CommandSerializer):
     KEYWORD = 'mute'
 
-    def serialize(self, target):
+    def serialize(self, target, timeout=None):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
             return 'You don\'t have access to use this command!'
 
@@ -42,6 +43,16 @@ class CommandMute(CommandSerializer):
             targetEntity.muted = False
         else:
             targetEntity.muted = True
+
+        # if a timeout float is specified, thich means we are to unmute
+        # the player after a certain amount of time "timeout".
+        if timeout is not None:
+            try:
+                timeout = float(timeout)
+            except:
+                return 'Failed to mute player %s for %s!' % (target, timeout)
+
+            reactor.callLater(timeout, self.serialize, target)
 
         return 'Successfully muted %s.' % target
 
