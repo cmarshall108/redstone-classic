@@ -197,15 +197,18 @@ class PositionAndOrientation(PacketSerializer):
             self._protocol.handleDisconnect()
             return
 
-        x = float(x / 32.0)
-        y = float(y / 32.0)
-        z = float(z / 32.0)
+        x = x / 32.0
+        y = y / 32.0
+        z = z / 32.0
 
-        # update the players x,y,z,yaw,pitch and subtract the current value
-        # from the last known value to get the new location change.
         entity = self._protocol.entity
 
         if not entity:
+            return
+
+        world = self._protocol.factory.worldManager.getWorldFromEntity(entity.id)
+
+        if not world:
             return
 
         changeX = entity.x - x
@@ -226,10 +229,7 @@ class PositionAndOrientation(PacketSerializer):
         entity.yaw = yaw
         entity.pitch = pitch
 
-        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
-
-        # the player is moving to fast, teleport them to the x,y,z cordinates
-        if changeX < -128 or changeX > 127 or changeY < -128 or changeY > 127 or changeZ < -128 or changeZ > 127:
+        if self.isOutOfRange(changeX) or self.isOutOfRange(changeY) or self.isOutOfRange(changeZ):
             self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [self._protocol],
                 entity.id, entity.x, entity.y, entity.z, entity.yaw, entity.pitch)
 
@@ -237,6 +237,12 @@ class PositionAndOrientation(PacketSerializer):
 
         self._protocol.factory.worldManager.broadcast(world, PositionAndOrientationUpdate.DIRECTION, PositionAndOrientationUpdate.ID, [self._protocol],
             self._protocol.entity.id if playerId == 255 else playerId, changeX, changeY, changeZ, entity.yaw, entity.pitch)
+
+    def isOutOfRange(self, value):
+        if value < -128 or value > 127:
+            return True
+
+        return False
 
 class DisconnectPlayer(PacketSerializer):
     ID = 0x0e
