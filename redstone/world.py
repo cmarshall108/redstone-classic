@@ -12,6 +12,7 @@ import json
 from redstone.logging import Logger as logger
 from redstone.entity import Entity, PlayerEntity, EntityManager
 from redstone.protocol import SpawnPlayer, DespawnPlayer
+from redstone.block import BlockPhysicsManager
 
 def compress(data, compresslevel=9):
     """Compress data in one shot and return the compressed string.
@@ -40,12 +41,15 @@ class World(object):
     DEPTH = 256
 
     def __init__(self, worldManager, name, blockData=None):
-        super(World, self).__init__()
-
         self._worldManager = worldManager
         self._name = name
         self._entityManager = EntityManager()
+        self._physicsManager = BlockPhysicsManager(self)
         self._blockData = blockData if blockData else self.__generate()
+
+    @property
+    def worldManager(self):
+        return self._worldManager
 
     @property
     def name(self):
@@ -58,6 +62,10 @@ class World(object):
     @property
     def entityManager(self):
         return self._entityManager
+
+    @property
+    def physicsManager(self):
+        return self._physicsManager
 
     @property
     def width(self):
@@ -85,17 +93,18 @@ class World(object):
     def getBlock(self, x, y, z):
         return self._blockData[x + self.DEPTH * (z + self.WIDTH * y)]
 
-    def setBlock(self, x, y, z, block):
-        self._blockData[x + self.DEPTH * (z + self.WIDTH * y)] = block
+    def setBlock(self, x, y, z, blockId):
+        self._blockData[x + self.DEPTH * (z + self.WIDTH * y)] = blockId
 
-        # save the data to the world file on block change
-        self.save()
+        # a block has just been placed, tell the physics manager
+        # incase the block has physics and needs to be updated
+        self._physicsManager.updateBlock(x, y, z, blockId)
 
     def serialize(self):
         return compress(struct.pack('!I', len(self._blockData)) + bytes(self._blockData))
 
     def addPlayer(self, protocol, username):
-        playerEntity = PlayerEntity()
+        playerEntity = PlayerEntity(protocol)
         playerEntity.id = self._entityManager.allocator.allocate()
         playerEntity.username = username
         playerEntity.world = self.name
@@ -156,8 +165,6 @@ class WorldManagerIOError(Exception):
 class WorldManagerIO(object):
 
     def __init__(self):
-        super(WorldManagerIO, self).__init__()
-
         self._directory = 'worlds'
         self._filename = '%s/properties.json' % self._directory
         self._mainWorldName = 'main'

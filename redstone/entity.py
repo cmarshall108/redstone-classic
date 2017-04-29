@@ -8,9 +8,10 @@ from redstone.util import PlayerRanks
 
 class Entity(object):
 
-    def __init__(self):
+    def __init__(self, protocol=None):
         super(Entity, self).__init__()
 
+        self._protocol = protocol
         self._id = 0
         self._x = 0
         self._y = 0
@@ -20,8 +21,9 @@ class Entity(object):
         self._world = ''
         self._rank = PlayerRanks.GUEST
 
-    def isPlayer(self):
-        return False
+    @property
+    def protocol(self):
+        return self._protocol
 
     @property
     def x(self):
@@ -79,10 +81,13 @@ class Entity(object):
     def rank(self, rank):
         self._rank = rank
 
+    def isPlayer(self):
+        return False
+
 class PlayerEntity(Entity):
 
-    def __init__(self):
-        super(PlayerEntity, self).__init__()
+    def __init__(self, protocol):
+        super(PlayerEntity, self).__init__(protocol)
 
         self._username = ''
 

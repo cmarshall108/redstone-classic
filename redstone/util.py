@@ -91,6 +91,17 @@ class DataBuffer(object):
 def clamp(value, minV, maxV):
     return max(minV, min(value, maxV))
 
+def joinWithSpaces(chars):
+    out = []
+
+    for char in chars:
+        if chars.index(char) == len(char):
+            out.append(char)
+        else:
+            out.append('%s ' % char)
+
+    return ''.join(out)
+
 class Mouse(object):
     LEFT_CLICK = 0
     RIGHT_CLICK = 1
@@ -116,3 +127,25 @@ class ChatColors(object):
 class PlayerRanks(object):
     GUEST = 0
     ADMINISTRATOR = 1
+
+class BlockIds(object):
+    AIR = 0
+    GRASS = 2
+    DIRT = 3
+    COBBLESTONE = 4
+    WOOD_PLANKS = 5
+    SAPLING = 6
+    BEDROCK = 7
+    FLOWING_WATER = 8
+    STATIONARY_WATER = 9
+    FLOWING_LAVA = 10
+    STATIONARY_LAVA = 11
+    SAND = 12
+    GRAVEL = 13
+    GOLD_ORE = 14
+    IRON_ORE = 15
+    COAL_ORE = 16
+
+    @classmethod
+    def hasBlockId(cls, blockId):
+        return True if getattr(cls, blockId) else False

@@ -4,7 +4,7 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
-from redstone.util import DataBuffer, PlayerRanks, ChatColors
+from redstone.util import DataBuffer, PlayerRanks, ChatColors, BlockIds, Mouse
 from redstone.logging import Logger as logger
 
 class PacketSerializer(object):
@@ -68,8 +68,8 @@ class SetBlockClient(PacketSerializer):
             self._protocol.entity.id)
 
         # todo: use block types instead of hard coded block types.
-        if mode == 0:
-            blockType = 0x00
+        if mode == Mouse.LEFT_CLICK:
+            blockType = BlockIds.AIR
 
         # set the block on the world instance
         world.setBlock(x, y, z, blockType)
@@ -108,6 +108,9 @@ class ClientMessage(PacketSerializer):
         if self._protocol.commandParser.isCommand(message):
             response = self._protocol.commandParser.parse(message, entity)
 
+            if not response:
+                return
+
             # do not broadcast the command response send the response
             # only to the local client.
             self._dispatcher.handleDispatch(ServerMessage.DIRECTION, ServerMessage.ID,
@@ -135,6 +138,8 @@ class ClientMessage(PacketSerializer):
     def getColorFromRank(self, entity):
         if entity.rank == PlayerRanks.GUEST:
             return ChatColors.DARK_GRAY
+        elif entity.rank == PlayerRanks.ADMINISTRATOR:
+            return ChatColors.YELLOW
 
 class PositionAndOrientationStatic(PacketSerializer):
     ID = 0x08
@@ -320,7 +325,13 @@ class ServerIdentification(PacketSerializer):
         self._dataBuffer.writeByte(0x07)
         self._dataBuffer.writeString('A Minecraft classic server!')
         self._dataBuffer.writeString('Welcome to the custom Mineserver!')
-        self._dataBuffer.writeByte(0x00)
+
+        if username == 'BonemealPioneer':
+            isOp = 0x64
+        else:
+            isOp = 0x00
+
+        self._dataBuffer.writeByte(isOp)
 
         if not worldName:
             world = self._protocol.factory.worldManager.getMainWorld()
@@ -328,6 +339,11 @@ class ServerIdentification(PacketSerializer):
             world = self._protocol.factory.worldManager.getWorld(worldName)
 
         world.addPlayer(self._protocol, username)
+
+        if isOp == 0x64:
+            self._protocol.entity.rank = PlayerRanks.ADMINISTRATOR
+        else:
+            self._protocol.entity.rank = PlayerRanks.GUEST
 
         return True
 

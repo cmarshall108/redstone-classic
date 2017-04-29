@@ -5,7 +5,8 @@
  """
 
 from redstone.logging import Logger as logger
-from redstone.protocol import PositionAndOrientationStatic, ServerIdentification
+from redstone.util import PlayerRanks, ChatColors, joinWithSpaces
+from redstone.protocol import PositionAndOrientationStatic, ServerIdentification, ServerMessage, DisconnectPlayer
 
 class CommandSerializer(object):
     KEYWORD = None
@@ -21,6 +22,40 @@ class CommandSerializer(object):
 
     def serializeDone(self):
         pass
+
+class CommandKick(CommandSerializer):
+    KEYWORD = 'kick'
+
+    def serialize(self, target, *reason):
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
+            return 'You don\'t have access to use this command!'
+
+        targetEntity = self._protocol.factory.worldManager.getEntityFromUsername(target)
+
+        if not targetEntity:
+            return 'Failed to kick unknown player %s' % target
+
+        protocol = targetEntity.protocol
+
+        if not targetEntity:
+            return 'Failed to kick player %s!' % target
+
+        protocol.dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
+            joinWithSpaces(reason))
+
+        return 'Successfully kicked player %s!' % targetEntity.name
+
+class CommandSay(CommandSerializer):
+    KEYWORD = 'say'
+
+    def serialize(self, *message):
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
+            return 'You don\'t have access to use this command!'
+
+        self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], self._protocol.entity.id,
+            '%s[SERVER]%s: %s' % (ChatColors.RED, ChatColors.WHITE, joinWithSpaces(message)))
+
+        return None
 
 class CommandGoto(CommandSerializer):
     KEYWORD = 'goto'
@@ -56,6 +91,9 @@ class CommandSaveAll(CommandSerializer):
     KEYWORD = 'saveall'
 
     def serialize(self):
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
+            return
+
         for world in self._protocol.factory.worldManager.worlds.values():
             world.save()
 
@@ -65,6 +103,9 @@ class CommandSave(CommandSerializer):
     KEYWORD = 'save'
 
     def serialize(self):
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
+            return 'You don\'t have access to use this command!'
+
         entity = self._protocol.entity
 
         if not entity:
@@ -93,6 +134,9 @@ class CommandTeleport(CommandSerializer):
 
         if senderEntity.id == targetEntity.id:
             return 'You cannot teleport to your self!'
+
+        if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR and senderEntity != self._protocol.entity:
+            return 'You don\'t have access to use this command!'
 
         x = targetEntity.x
         y = targetEntity.y
@@ -147,6 +191,8 @@ class CommandDispatcher(object):
 
         self._protocol = protocol
         self._commands = {
+            CommandKick.KEYWORD: CommandKick,
+            CommandSay.KEYWORD: CommandSay,
             CommandGoto.KEYWORD: CommandGoto,
             CommandSaveAll.KEYWORD: CommandSaveAll,
             CommandSave.KEYWORD: CommandSave,

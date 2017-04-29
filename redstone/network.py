@@ -4,12 +4,54 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
  """
 
+import urllib
+import urllib2
+
 from twisted.internet.protocol import Protocol, ServerFactory
+from twisted.internet.task import LoopingCall
 from redstone.logging import Logger as logger
 from redstone.util import DataBuffer
 from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
 from redstone.world import WorldManager
 from redstone.command import CommandParser
+
+class NetworkPinger(object):
+
+    def __init__(self, factory, delay=25.0):
+        self._factory = factory
+        self._loopCall = LoopingCall(self.__ping)
+        self._loopCall.start(delay)
+
+    def getNumPlayers(self):
+        numPlayerOnline = 0
+
+        for world in self._factory.worldManager.worlds.values():
+            for entity in world.entityManager.entities.values():
+                if entity.isPlayer():
+                    numPlayerOnline += 1
+
+        return numPlayerOnline
+
+    def __ping(self):
+        url = 'http://www.classicube.net/server/heartbeat'
+        fields = {
+            'port': 25565,
+            'max': 1024,
+            'name': 'The Redstone Project Classic Server',
+            'public': True,
+            'version': 7,
+            'salt': '123456789abcdefg',
+            'users': self.getNumPlayers(),
+            'software': 'Redstone-Crafted',
+        }
+
+        request = urllib2.Request(url, urllib.urlencode(fields))
+        request.add_header('User-Agent', 'Redstone-Crafted')
+
+        try:
+            response = urllib2.urlopen(request).read()
+        except:
+            logger.debug('Failed to ping server list!')
 
 class NetworkTransportBuffer(object):
 
@@ -132,8 +174,8 @@ class NetworkFactory(ServerFactory):
 
     def __init__(self):
         self._protocols = []
-
         self._worldManager = WorldManager(self)
+        self._pinger = NetworkPinger(self)
 
     @property
     def protocols(self):
