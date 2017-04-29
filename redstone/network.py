@@ -18,7 +18,7 @@ from redstone.command import CommandParser
 
 class NetworkPinger(object):
 
-    def __init__(self, factory, delay=25.0):
+    def __init__(self, factory, delay=1.0):
         self._factory = factory
         self._loopCall = LoopingCall(self.__ping)
         self._loopCall.start(delay)

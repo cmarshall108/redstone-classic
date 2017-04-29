@@ -138,6 +138,16 @@ class PlayerRanks(object):
     GUEST = 0
     ADMINISTRATOR = 1
 
+    @classmethod
+    def hasPermission(cls, entity, requiredRank):
+        if requiredRank == cls.GUEST:
+            return True
+
+        if entity.rank != requiredRank:
+            return False
+
+        return True
+
 class BlockIds(object):
     AIR = 0
     GRASS = 2

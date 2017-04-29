@@ -112,7 +112,7 @@ class ClientMessage(PacketSerializer):
             return
 
         if self._protocol.commandParser.isCommand(message):
-            response = self._protocol.commandParser.parse(message, entity)
+            response = self._protocol.commandParser.parse(message)
 
             if not response:
                 return
