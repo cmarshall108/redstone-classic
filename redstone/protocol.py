@@ -117,10 +117,13 @@ class ClientMessage(PacketSerializer):
             if not response:
                 return
 
-            # do not broadcast the command response send the response
-            # only to the local client.
-            self._dispatcher.handleDispatch(ServerMessage.DIRECTION, ServerMessage.ID,
-                entity.id, response)
+            if isinstance(response, list):
+                for message in response:
+                    self._dispatcher.handleDispatch(ServerMessage.DIRECTION, ServerMessage.ID,
+                        entity.id, message)
+            else:
+                self._dispatcher.handleDispatch(ServerMessage.DIRECTION, ServerMessage.ID,
+                    entity.id, response)
 
             return
 

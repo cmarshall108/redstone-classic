@@ -67,26 +67,36 @@ class DataBuffer(object):
         return self.read(length).encode('utf-8').strip()
 
     def writeString(self, string, length=64):
-        outStringList = []
+        offset = 0
 
-        if len(string) > length:
-            string = string[:length]
+        while offset < len(string):
+            outStringList = []
 
-        for _ in xrange(length - len(string)):
-            outStringList.append('\x20')
+            if len(string) > length:
+                string = string[offset:][:length]
 
-        self.write(string + ''.join(outStringList))
+            for _ in xrange(length - len(string)):
+                outStringList.append('\x20')
+
+            self.write(string + ''.join(outStringList))
+
+            offset += length
 
     def writeArray(self, byteArray, length=1024):
-        outByteArrayList = []
+        offset = 0
 
-        if len(byteArray) > length:
-            byteArray = byteArray[:length]
+        while offset < len(byteArray):
+            outByteArrayList = []
 
-        for _ in xrange(length - len(byteArray)):
-            outByteArrayList.append('\x00')
+            if len(byteArray) > length:
+                byteArray = byteArray[offset:][:length]
 
-        self.write(byteArray + ''.join(outByteArrayList))
+            for _ in xrange(length - len(byteArray)):
+                outByteArrayList.append('\x00')
+
+            self.write(byteArray + ''.join(outByteArrayList))
+
+            offset += length
 
 def clamp(value, minV, maxV):
     return max(minV, min(value, maxV))

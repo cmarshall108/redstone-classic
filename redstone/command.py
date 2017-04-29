@@ -11,6 +11,7 @@ from redstone.protocol import PositionAndOrientationStatic, ServerIdentification
 
 class CommandSerializer(object):
     KEYWORD = None
+    DOCUMENTATION = None
 
     def __init__(self, protocol, dispatcher):
         super(CommandSerializer, self).__init__()
@@ -26,6 +27,7 @@ class CommandSerializer(object):
 
 class CommandMute(CommandSerializer):
     KEYWORD = 'mute'
+    DOCUMENTATION = 'Mutes a spefific player for an amount if time.'
 
     def serialize(self, target, timeout=None):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
@@ -58,6 +60,7 @@ class CommandMute(CommandSerializer):
 
 class CommandKick(CommandSerializer):
     KEYWORD = 'kick'
+    DOCUMENTATION = 'Kicks a player for a certain reason.'
 
     def serialize(self, target, *reason):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
@@ -80,6 +83,7 @@ class CommandKick(CommandSerializer):
 
 class CommandSay(CommandSerializer):
     KEYWORD = 'say'
+    DOCUMENTATION = 'Broadcasts a server message.'
 
     def serialize(self, *message):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
@@ -92,6 +96,7 @@ class CommandSay(CommandSerializer):
 
 class CommandGoto(CommandSerializer):
     KEYWORD = 'goto'
+    DOCUMENTATION = 'Sends a player to a specific world.'
 
     def serialize(self, world):
         entity = self._protocol.entity
@@ -122,6 +127,7 @@ class CommandGoto(CommandSerializer):
 
 class CommandSaveAll(CommandSerializer):
     KEYWORD = 'saveall'
+    DOCUMENTATION = 'Saves all worlds.'
 
     def serialize(self):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
@@ -134,6 +140,7 @@ class CommandSaveAll(CommandSerializer):
 
 class CommandSave(CommandSerializer):
     KEYWORD = 'save'
+    DOCUMENTATION = 'Saves the world your currently in.'
 
     def serialize(self):
         if self._protocol.entity.rank != PlayerRanks.ADMINISTRATOR:
@@ -154,6 +161,7 @@ class CommandSave(CommandSerializer):
 
 class CommandTeleport(CommandSerializer):
     KEYWORD = 'tp'
+    DOCUMENTATION = 'Teleports a specific player to another player.'
 
     def serialize(self, sender, target):
         senderEntity = self._protocol.factory.worldManager.getEntityFromUsername(sender)
@@ -189,6 +197,7 @@ class CommandTeleport(CommandSerializer):
 
 class CommandList(CommandSerializer):
     KEYWORD = 'list'
+    DOCUMENTATION = 'Lists players, worlds currently active.'
 
     def serialize(self, listType):
 
@@ -217,6 +226,18 @@ class CommandList(CommandSerializer):
 
         return 'Unknown command argument specified %s!' % listType
 
+class CommandHelp(CommandSerializer):
+    KEYWORD = 'help'
+    DOCUMENTATION = 'Shows the help page.'
+
+    def serialize(self):
+        docs = []
+
+        for command in self._dispatcher.commands.values():
+            docs.append('> /%s: %s' % (command.KEYWORD, command.DOCUMENTATION))
+
+        return docs
+
 class CommandDispatcher(object):
 
     def __init__(self, protocol):
@@ -232,7 +253,12 @@ class CommandDispatcher(object):
             CommandSave.KEYWORD: CommandSave,
             CommandTeleport.KEYWORD: CommandTeleport,
             CommandList.KEYWORD: CommandList,
+            CommandHelp.KEYWORD: CommandHelp,
         }
+
+    @property
+    def commands(self):
+        return self._commands
 
     def handleDispatch(self, keyword, arguments):
         if keyword not in self._commands:
