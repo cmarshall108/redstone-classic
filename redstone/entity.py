@@ -116,13 +116,21 @@ class UniqueIdAllocator(object):
     def __init__(self, maxIds=255):
         super(UniqueIdAllocator, self).__init__()
 
-        self._id = 0
+        self._ids = {id: False for id in xrange(maxIds)}
 
     def allocate(self):
-        self._id += 1; return self._id
+        for id in self._ids:
+            if self._ids[id]:
+                continue
+
+            self._ids[id] = True
+            return id
 
     def deallocate(self, id):
-        pass
+        if id not in self._ids:
+            return
+
+        self._ids[id] = False
 
 class EntityManager(object):
 

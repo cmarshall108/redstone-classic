@@ -12,7 +12,7 @@ from twisted.internet.protocol import Protocol, ServerFactory
 from twisted.internet.task import LoopingCall
 from redstone.logging import Logger as logger
 from redstone.util import DataBuffer
-from redstone.protocol import PacketDispatcher, SpawnPlayer, DespawnPlayer, DisconnectPlayer
+from redstone.protocol import PacketDispatcher, DisconnectPlayer
 from redstone.world import WorldManager
 from redstone.command import CommandParser
 
@@ -226,8 +226,7 @@ class NetworkFactory(ServerFactory):
 
         # if the protocol has a entity, remove it.
         if protocol.entity is not None:
-            world = self.worldManager.getWorldFromEntity(protocol.entity.id)
-            world.removePlayer(protocol)
+            self.worldManager.getWorldFromEntity(protocol.entity.id).removePlayer(protocol)
 
         self._protocols.remove(protocol)
 

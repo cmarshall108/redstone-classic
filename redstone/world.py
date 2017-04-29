@@ -11,8 +11,9 @@ import os
 import json
 from redstone.logging import Logger as logger
 from redstone.entity import Entity, PlayerEntity, EntityManager
-from redstone.protocol import SpawnPlayer, DespawnPlayer
+from redstone.protocol import SpawnPlayer, DespawnPlayer, ServerMessage
 from redstone.block import BlockPhysicsManager
+from redstone.util import ChatColors
 
 def compress(data, compresslevel=9):
     """Compress data in one shot and return the compressed string.
@@ -121,9 +122,16 @@ class World(object):
 
         logger.info('%s joined world %s' % (playerEntity.username, self.name))
 
+        # broadcast the player joined message
+        protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], protocol.entity.id, '%s%s joined the game.%s' % (
+            ChatColors.BLUE, protocol.entity.username, ChatColors.WHITE))
+
     def removePlayer(self, protocol):
         # remove the protocols entity from the entity manager
         self._entityManager.removeEntity(protocol.entity)
+
+        # free the entity id
+        self._entityManager.allocator.deallocate(protocol.entity.id)
 
         # update all entities for all players except for the entities owner.
         self._worldManager.broadcast(self, DespawnPlayer.DIRECTION, DespawnPlayer.ID,
@@ -131,12 +139,16 @@ class World(object):
 
         logger.info('%s left world %s' % (protocol.entity.username, self.name))
 
+        # broadcast the leaving message
+        protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], protocol.entity.id, '%s%s left the game.%s' % (
+            ChatColors.BLUE, protocol.entity.username, ChatColors.WHITE))
+
         # remove the entity from the protocol
         protocol.entity = None
 
     def updatePlayers(self, protocol):
         for entity in self._entityManager.entities.values():
-            if entity.world != self.name:
+            if entity.world != self.name or entity.id == protocol.entity.id:
                 continue
 
             protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, entity)

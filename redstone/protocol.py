@@ -29,7 +29,7 @@ class PacketSerializer(object):
         return self._dataBuffer
 
     def serialize(self, *args, **kw):
-        return False
+        return (False, [])
 
     def serializeDone(self):
         pass
@@ -50,7 +50,7 @@ class SetBlockServer(PacketSerializer):
         self._dataBuffer.writeShort(z)
         self._dataBuffer.writeByte(blockType)
 
-        return True
+        return (True, [])
 
 class SetBlockClient(PacketSerializer):
     ID = 0x05
@@ -89,7 +89,7 @@ class ServerMessage(PacketSerializer):
         self._dataBuffer.writeSByte(entityId)
         self._dataBuffer.writeString(message)
 
-        return True
+        return (True, [])
 
 class ClientMessage(PacketSerializer):
     ID = 0x0d
@@ -162,7 +162,7 @@ class PositionAndOrientationStatic(PacketSerializer):
         self._dataBuffer.writeByte(yaw)
         self._dataBuffer.writeByte(pitch)
 
-        return True
+        return (True, [])
 
 class PositionAndOrientationUpdate(PacketSerializer):
     ID = 0x09
@@ -176,7 +176,7 @@ class PositionAndOrientationUpdate(PacketSerializer):
         self._dataBuffer.writeByte(yaw)
         self._dataBuffer.writeByte(pitch)
 
-        return True
+        return (True, [])
 
 class PositionAndOrientation(PacketSerializer):
     ID = 0x08
@@ -242,7 +242,7 @@ class DisconnectPlayer(PacketSerializer):
     def serialize(self, reason):
         self._dataBuffer.writeString(reason)
 
-        return True
+        return (True, [])
 
     def serializeDone(self):
         # we've just sent a disconnect message to the player,
@@ -256,7 +256,7 @@ class DespawnPlayer(PacketSerializer):
     def serialize(self, entity):
         self._dataBuffer.writeSByte(entity.id)
 
-        return True
+        return (True, [])
 
 class SpawnPlayer(PacketSerializer):
     ID = 0x07
@@ -274,7 +274,7 @@ class SpawnPlayer(PacketSerializer):
         self._dataBuffer.writeByte(entity.yaw)
         self._dataBuffer.writeByte(entity.pitch)
 
-        return True
+        return (True, [])
 
 class LevelFinalize(PacketSerializer):
     ID = 0x04
@@ -287,7 +287,7 @@ class LevelFinalize(PacketSerializer):
         self._dataBuffer.writeShort(world.height)
         self._dataBuffer.writeShort(world.depth)
 
-        return True
+        return (True, [])
 
     def serializeDone(self):
         world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
@@ -304,7 +304,7 @@ class LevelDataChunk(PacketSerializer):
         self._dataBuffer.writeArray(chunk)
         self._dataBuffer.writeByte(int((100 / len(chunk)) * chunkCount))
 
-        return False
+        return (False, [])
 
 class LevelInitialize(PacketSerializer):
     ID = 0x02
@@ -327,7 +327,7 @@ class Ping(PacketSerializer):
     DIRECTION = 'upstream'
 
     def serialize(self):
-        return True
+        return (True, [])
 
 class ServerIdentification(PacketSerializer):
     ID = 0x00
@@ -357,7 +357,7 @@ class ServerIdentification(PacketSerializer):
         else:
             self._protocol.entity.rank = PlayerRanks.GUEST
 
-        return True
+        return (True, [])
 
     def serializeDone(self):
         self._dispatcher.handleDispatch(LevelInitialize.DIRECTION, LevelInitialize.ID)
@@ -393,7 +393,7 @@ class PlayerIdentification(PacketSerializer):
 
         if not hmac.compare_digest(verificationKey, digester.hexdigest()):
             self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'You\'re forging your username!')
+                'Not authenticated with classicube.net!')
 
             return
 
@@ -450,7 +450,7 @@ class PacketDispatcher(object):
         if direction == 'downstream':
             packet.deserialize(*args, **kw)
         elif direction == 'upstream':
-            canSendData = packet.serialize(*args, **kw)
+            (canSendData, args) = packet.serialize(*args, **kw)
 
             dataBuffer = DataBuffer()
             dataBuffer.writeByte(packet.ID)
@@ -463,7 +463,7 @@ class PacketDispatcher(object):
 
             # the data has been sent, now give the packer handler
             # a change to send any following data.
-            packet.serializeDone()
+            packet.serializeDone(*args)
 
     def handleDiscard(self, packetId):
         logger.warning('Discarding incoming packet %d!' % packetId)
