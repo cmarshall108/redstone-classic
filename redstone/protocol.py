@@ -6,55 +6,63 @@
 
 import hashlib
 import hmac
+import enum
 
 from redstone.util import DataBuffer, PlayerRanks, ChatColors, BlockIds, Mouse
 from redstone.logging import Logger as logger
+
+class PacketDirections(enum.Enum):
+    UPSTREAM = 0
+    DOWNSTREAM = 1
 
 class PacketSerializer(object):
     ID = None
     DIRECTION = None
 
-    def __init__(self, protocol, dispatcher):
-        super(PacketSerializer, self).__init__()
-
+    def __init__(self, dispatcher, protocol):
         self._protocol = protocol
         self._dispatcher = dispatcher
 
-        # each packet will reassign the data buffer to
-        # its packet data buffer and will be sent via the transport buffer.
-        self._dataBuffer = DataBuffer()
+    @property
+    def protocol(self):
+        return self._protocol
 
     @property
-    def dataBuffer(self):
-        return self._dataBuffer
+    def serializable(self):
+        return self.serialize if self.DIRECTION == PacketDirections.UPSTREAM else self.deserialize
 
-    def serialize(self, *args, **kw):
-        return (False, [])
+    @property
+    def serializableCallback(self):
+        return self.serializeComplete if self.DIRECTION == PacketDirections.UPSTREAM else self.deserializeComplete
 
-    def serializeDone(self):
+    def serialize(self, *args, **kwargs):
+        return None
+
+    def serializeComplete(self):
         pass
 
-    def deserialize(self, *args, **kw):
-        pass
+    def deserialize(self, *args, **kwargs):
+        return None
 
-    def deserializeDone(self):
+    def deserializeComplete(self):
         pass
 
 class SetBlockServer(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x06
-    DIRECTION = 'upstream'
 
     def serialize(self, x, y, z, blockType):
-        self._dataBuffer.writeShort(x)
-        self._dataBuffer.writeShort(y)
-        self._dataBuffer.writeShort(z)
-        self._dataBuffer.writeByte(blockType)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeShort(x)
+        dataBuffer.writeShort(y)
+        dataBuffer.writeShort(z)
+        dataBuffer.writeByte(blockType)
 
-        return (True, [])
+        return dataBuffer
 
 class SetBlockClient(PacketSerializer):
+    DIRECTION = PacketDirections.DOWNSTREAM
     ID = 0x05
-    DIRECTION = 'downstream'
 
     def deserialize(self, dataBuffer):
         try:
@@ -82,18 +90,19 @@ class SetBlockClient(PacketSerializer):
             x, y, z, blockType)
 
 class ServerMessage(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x0d
-    DIRECTION = 'upstream'
 
     def serialize(self, entityId, message):
-        self._dataBuffer.writeSByte(entityId)
-        self._dataBuffer.writeString(message)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeSByte(entityId)
+        dataBuffer.writeString(message)
 
-        return (True, [])
+        return dataBuffer
 
 class ClientMessage(PacketSerializer):
+    DIRECTION = PacketDirections.DOWNSTREAM
     ID = 0x0d
-    DIRECTION = 'downstream'
 
     def deserialize(self, dataBuffer):
         try:
@@ -151,39 +160,41 @@ class ClientMessage(PacketSerializer):
             return ChatColors.YELLOW
 
 class PositionAndOrientationStatic(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x08
-    DIRECTION = 'upstream'
 
     def serialize(self, entityId, x, y, z, yaw, pitch):
         if not self._protocol.entity:
             return
 
-        self._dataBuffer.writeSByte(-1 if entityId == self._protocol.entity.id else entityId)
-        self._dataBuffer.writeShort(x * 32.0)
-        self._dataBuffer.writeShort(y * 32.0)
-        self._dataBuffer.writeShort(z * 32.0)
-        self._dataBuffer.writeByte(yaw)
-        self._dataBuffer.writeByte(pitch)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeSByte(-1 if entityId == self._protocol.entity.id else entityId)
+        dataBuffer.writeShort(x * 32.0)
+        dataBuffer.writeShort(y * 32.0)
+        dataBuffer.writeShort(z * 32.0)
+        dataBuffer.writeByte(yaw)
+        dataBuffer.writeByte(pitch)
 
-        return (True, [])
+        return dataBuffer
 
 class PositionAndOrientationUpdate(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x09
-    DIRECTION = 'upstream'
 
     def serialize(self, entityId, x, y, z, yaw, pitch):
-        self._dataBuffer.writeSByte(entityId)
-        self._dataBuffer.writeSByte(x)
-        self._dataBuffer.writeSByte(y)
-        self._dataBuffer.writeSByte(z)
-        self._dataBuffer.writeByte(yaw)
-        self._dataBuffer.writeByte(pitch)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeSByte(entityId)
+        dataBuffer.writeSByte(x)
+        dataBuffer.writeSByte(y)
+        dataBuffer.writeSByte(z)
+        dataBuffer.writeByte(yaw)
+        dataBuffer.writeByte(pitch)
 
-        return (True, [])
+        return dataBuffer
 
 class PositionAndOrientation(PacketSerializer):
+    DIRECTION = PacketDirections.DOWNSTREAM
     ID = 0x08
-    DIRECTION = 'downstream'
 
     def deserialize(self, dataBuffer):
         try:
@@ -245,81 +256,85 @@ class PositionAndOrientation(PacketSerializer):
         return False
 
 class DisconnectPlayer(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x0e
-    DIRECTION = 'upstream'
 
     def serialize(self, reason):
-        self._dataBuffer.writeString(reason)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeString(reason)
 
-        return (True, [])
+        return dataBuffer
 
-    def serializeDone(self):
-        # we've just sent a disconnect message to the player,
-        # but to make sure the player disconnects drop there connection.
+    def serializeComplete(self):
         self._protocol.handleDisconnect()
 
 class DespawnPlayer(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x0c
-    DIRECTION = 'upstream'
 
     def serialize(self, entity):
-        self._dataBuffer.writeSByte(entity.id)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeSByte(entity.id)
 
-        return (True, [])
+        return dataBuffer
 
 class SpawnPlayer(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x07
-    DIRECTION = 'upstream'
 
     def serialize(self, entity):
         if not self._protocol.entity:
             return
 
-        self._dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
-        self._dataBuffer.writeString(entity.username)
-        self._dataBuffer.writeShort(entity.x * 32.0)
-        self._dataBuffer.writeShort(entity.y * 32.0)
-        self._dataBuffer.writeShort(entity.z * 32.0)
-        self._dataBuffer.writeByte(entity.yaw)
-        self._dataBuffer.writeByte(entity.pitch)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
+        dataBuffer.writeString(entity.username)
+        dataBuffer.writeShort(entity.x * 32.0)
+        dataBuffer.writeShort(entity.y * 32.0)
+        dataBuffer.writeShort(entity.z * 32.0)
+        dataBuffer.writeByte(entity.yaw)
+        dataBuffer.writeByte(entity.pitch)
 
-        return (True, [])
+        return dataBuffer
 
 class LevelFinalize(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x04
-    DIRECTION = 'upstream'
 
     def serialize(self):
         world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
 
-        self._dataBuffer.writeShort(world.width)
-        self._dataBuffer.writeShort(world.height)
-        self._dataBuffer.writeShort(world.depth)
+        dataBuffer = DataBuffer()
+        dataBuffer.writeShort(world.width)
+        dataBuffer.writeShort(world.height)
+        dataBuffer.writeShort(world.depth)
 
-        return (True, [])
+        return dataBuffer
 
-    def serializeDone(self):
-        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
-
-        # update all players within the world we're currently going to
-        world.updatePlayers(self._protocol)
+    def serializeComplete(self):
+        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id).\
+            updatePlayers(self._protocol)
 
 class LevelDataChunk(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x03
-    DIRECTION = 'upstream'
 
     def serialize(self, chunkCount, chunk):
-        self._dataBuffer.writeShort(len(chunk))
-        self._dataBuffer.writeArray(chunk)
-        self._dataBuffer.writeByte(int((100 / len(chunk)) * chunkCount))
+        dataBuffer = DataBuffer()
+        dataBuffer.writeShort(len(chunk))
+        dataBuffer.writeArray(chunk)
+        dataBuffer.writeByte(int((100 / len(chunk)) * chunkCount))
 
-        return (False, [])
+        return dataBuffer
 
 class LevelInitialize(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x02
-    DIRECTION = 'upstream'
 
-    def serializeDone(self):
+    def serialize(self):
+        return DataBuffer()
+
+    def serializeComplete(self):
         chunk = self._protocol.factory.worldManager.getWorldFromEntity(
             self._protocol.entity.id).serialize()
 
@@ -332,48 +347,41 @@ class LevelInitialize(PacketSerializer):
         self._dispatcher.handleDispatch(LevelFinalize.DIRECTION, LevelFinalize.ID)
 
 class Ping(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x01
-    DIRECTION = 'upstream'
 
     def serialize(self):
-        return (True, [])
+        return DataBuffer()
 
 class ServerIdentification(PacketSerializer):
+    DIRECTION = PacketDirections.UPSTREAM
     ID = 0x00
-    DIRECTION = 'upstream'
 
-    def serialize(self, username, worldName=None):
-        self._dataBuffer.writeByte(0x07)
-        self._dataBuffer.writeString('A Minecraft classic server!')
-        self._dataBuffer.writeString('Welcome to the custom Mineserver!')
-
-        if username == 'BonemealPioneer' or username == 'Owen_':
-            isOp = 0x64
-        else:
-            isOp = 0x00
-
-        self._dataBuffer.writeByte(isOp)
+    def serialize(self, username, entity=None, worldName=None):
+        dataBuffer = DataBuffer()
+        dataBuffer.writeByte(0x07)
+        dataBuffer.writeString('A Minecraft classic server!')
+        dataBuffer.writeString('Welcome to the custom Mineserver!')
+        dataBuffer.writeByte(0x00)
 
         if not worldName:
             world = self._protocol.factory.worldManager.getMainWorld()
         else:
             world = self._protocol.factory.worldManager.getWorld(worldName)
 
+        if entity:
+            world.removePlayer(self._protocol)
+
         world.addPlayer(self._protocol, username)
 
-        if isOp == 0x64:
-            self._protocol.entity.rank = PlayerRanks.ADMINISTRATOR
-        else:
-            self._protocol.entity.rank = PlayerRanks.GUEST
+        return dataBuffer
 
-        return (True, [])
-
-    def serializeDone(self):
+    def serializeComplete(self):
         self._dispatcher.handleDispatch(LevelInitialize.DIRECTION, LevelInitialize.ID)
 
 class PlayerIdentification(PacketSerializer):
+    DIRECTION = PacketDirections.DOWNSTREAM
     ID = 0x00
-    DIRECTION = 'downstream'
 
     def deserialize(self, dataBuffer):
         try:
@@ -385,25 +393,15 @@ class PlayerIdentification(PacketSerializer):
             self._protocol.handleDisconnect()
             return
 
-        if self._protocol.entity is not None:
-            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'You are already logged in!')
-
-            return
-
         if self._protocol.factory.worldManager.getEntityFromUsername(username):
-            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'There is already a player logged in with that username!')
-
+            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,'There is already a player logged in with that username!')
             return
 
         digester = hashlib.md5()
         digester.update(self._protocol.factory.salt + username)
 
         if not hmac.compare_digest(verificationKey, digester.hexdigest()):
-            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-                'Not authenticated with classicube.net!')
-
+            self._dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID, 'Not authenticated with classicube.net!')
             return
 
         self._dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID, username)
@@ -411,68 +409,53 @@ class PlayerIdentification(PacketSerializer):
 class PacketDispatcher(object):
 
     def __init__(self, protocol):
-        super(PacketDispatcher, self).__init__()
-
-        self._protocol = protocol
-        self._packets = {
-            'downstream': {
-                PlayerIdentification.ID: PlayerIdentification,
-                PositionAndOrientation.ID: PositionAndOrientation,
-                ClientMessage.ID: ClientMessage,
-                SetBlockClient.ID: SetBlockClient,
+        self._dispatchers = {
+            PacketDirections.DOWNSTREAM: {
+                PlayerIdentification.ID: PlayerIdentification(self, protocol),
+                PositionAndOrientation.ID: PositionAndOrientation(self, protocol),
+                ClientMessage.ID: ClientMessage(self, protocol),
+                SetBlockClient.ID: SetBlockClient(self, protocol),
             },
-            'upstream': {
-                ServerIdentification.ID: ServerIdentification,
-                Ping.ID: Ping,
-                LevelInitialize.ID: LevelInitialize,
-                LevelDataChunk.ID: LevelDataChunk,
-                LevelFinalize.ID: LevelFinalize,
-                SpawnPlayer.ID: SpawnPlayer,
-                DespawnPlayer.ID: DespawnPlayer,
-                PositionAndOrientationStatic.ID: PositionAndOrientationStatic,
-                PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate,
-                ServerMessage.ID: ServerMessage,
-                SetBlockServer.ID: SetBlockServer,
-                DisconnectPlayer.ID: DisconnectPlayer,
+            PacketDirections.UPSTREAM: {
+                ServerIdentification.ID: ServerIdentification(self, protocol),
+                Ping.ID: Ping(self, protocol),
+                LevelInitialize.ID: LevelInitialize(self, protocol),
+                LevelDataChunk.ID: LevelDataChunk(self, protocol),
+                LevelFinalize.ID: LevelFinalize(self, protocol),
+                SpawnPlayer.ID: SpawnPlayer(self, protocol),
+                DespawnPlayer.ID: DespawnPlayer(self, protocol),
+                PositionAndOrientationStatic.ID: PositionAndOrientationStatic(self, protocol),
+                PositionAndOrientationUpdate.ID: PositionAndOrientationUpdate(self, protocol),
+                ServerMessage.ID: ServerMessage(self, protocol),
+                SetBlockServer.ID: SetBlockServer(self, protocol),
+                DisconnectPlayer.ID: DisconnectPlayer(self, protocol),
             }
         }
 
-    def handleDispatch(self, direction, packetId, *args, **kw):
-        if direction not in self._packets:
-            self.handleDiscard(packetId)
+    def handleSend(self, dispatcher, otherDataBuffer):
+        dataBuffer = DataBuffer()
+        dataBuffer.writeByte(dispatcher.ID)
+        dataBuffer.write(otherDataBuffer.data)
+        dispatcher.protocol.transport.write(dataBuffer.data)
+
+    def handleDispatch(self, direction, packetId, *args, **kwargs):
+        if direction not in self._dispatchers or packetId not in self._dispatchers[direction]:
+            self.handleDiscard(direction, packetId)
             return
 
-        if packetId not in self._packets[direction]:
-            self.handleDiscard(packetId)
-            return
+        self.handleSerializable(self._dispatchers[direction][packetId], *args, **kwargs)
 
-        packet = self._packets[direction][packetId](self._protocol, self)
+    def handleSerializable(self, dispatcher, *args, **kwargs):
+        try:
+            otherDataBuffer = dispatcher.serializable(*args, **kwargs)
 
-        if direction != packet.DIRECTION:
-            return
+            if otherDataBuffer:
+                self.handleSend(dispatcher, otherDataBuffer)
+        finally:
+            self.handleSerializableCallback(dispatcher)
 
-        # handle the packet by the direction in which the data
-        # is traveling, upsteam or downsteam.
-        self.handlePacket(packet, packet.DIRECTION, *args, **kw)
+    def handleSerializableCallback(self, dispatcher):
+        dispatcher.serializableCallback()
 
-    def handlePacket(self, packet, direction, *args, **kw):
-        if direction == 'downstream':
-            packet.deserialize(*args, **kw)
-        elif direction == 'upstream':
-            (canSendData, args) = packet.serialize(*args, **kw)
-
-            dataBuffer = DataBuffer()
-            dataBuffer.writeByte(packet.ID)
-            dataBuffer.write(packet.dataBuffer.data)
-
-            self._protocol.transportBuffer.add(dataBuffer.data)
-
-            if canSendData:
-                self._protocol.transportBuffer.send()
-
-            # the data has been sent, now give the packer handler
-            # a change to send any following data.
-            packet.serializeDone(*args)
-
-    def handleDiscard(self, packetId):
+    def handleDiscard(self, direction, packetId):
         logger.warning('Discarding incoming packet %d!' % packetId)

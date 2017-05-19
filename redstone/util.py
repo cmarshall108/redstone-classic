@@ -9,8 +9,6 @@ from struct import pack, unpack_from, calcsize
 class DataBuffer(object):
 
     def __init__(self, data=bytes(), offset=0):
-        super(DataBuffer, self).__init__()
-
         self._data = data
         self._offset = offset
 
@@ -40,6 +38,10 @@ class DataBuffer(object):
         self._offset += length
         return data
 
+    def clear(self):
+        self._data = bytes()
+        self._offset = 0
+
     def readFrom(self, fmt):
         data = unpack_from('!%s' % fmt, self._data, self._offset)
         self._offset += calcsize('!%s' % fmt)
@@ -64,13 +66,16 @@ class DataBuffer(object):
         self.writeTo('h', value)
 
     def readString(self, length=64):
-        return self.read(length).encode('utf-8').strip()
+        return self.read(length).strip()
 
     def writeString(self, string, length=64):
-        self.write(string + ''.join(['\x20' * (length - len(string))]))
+        self.write(string + str().join(['\x20'] * (length - len(string))))
 
-    def writeArray(self, byteArray, length=1024):
-        self.write(byteArray + ''.join(['\x00' * (length - len(byteArray))]))
+    def readArray(self, length=1024):
+        return bytes(self.read(length))
+
+    def writeArray(self, array, length=1024):
+        self.write(array + bytes().join(['\x00'] * (length - len(array))))
 
 def clamp(value, minV, maxV):
     return max(minV, min(value, maxV))

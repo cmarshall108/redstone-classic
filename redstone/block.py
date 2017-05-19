@@ -13,15 +13,37 @@ class BlockPhysicsManager(object):
         self._world = world
 
     def hasPhysics(self, blockId):
-        return blockId == BlockIds.FLOWING_WATER
+        return blockId == BlockIds.SAND or blockId == BlockIds.GRAVEL
 
     def updateBlock(self, x, y, z, blockId):
         if self.hasPhysics(blockId):
             self.updateBlockPhysics(x, y, z, blockId)
 
     def updateBlockPhysics(self, x, y, z, blockId):
-        pass
+        dy = y - 1
 
-    def broadcastChange(self, x, y, z, blockId):
-        self._world.worldManager.factory.broadcast(SetBlockServer.DIRECTION, SetBlockServer.ID, [],
-            x, y, z, blockId)
+        while self._world.getBlock(x, dy, z) == BlockIds.AIR:
+            self.broadcastBlockChange(x, dy, z, blockId)
+
+            if self._world.getBlock(x, dy + 1, z) == blockId:
+                self.broadcastBlockChange(x, dy + 1, z, BlockIds.AIR)
+
+            dy -= 1
+        else:
+            dy = y + 1
+
+            if not self._world.blockInRange(x, dy, z):
+                return
+
+            blockId = self._world.getBlock(x, dy, z)
+
+            if not self.hasPhysics(blockId):
+                return
+
+            self.updateBlockPhysics(x, dy, z, blockId)
+
+    def broadcastBlockChange(self, x, y, z, blockId):
+
+        self._world.setBlock(x, y, z, blockId, False)
+
+        self._world.worldManager.factory.broadcast(SetBlockServer.DIRECTION, SetBlockServer.ID, [], x, y, z, blockId)

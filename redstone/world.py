@@ -94,12 +94,16 @@ class World(object):
     def getBlock(self, x, y, z):
         return self._blockData[x + self.DEPTH * (z + self.WIDTH * y)]
 
-    def setBlock(self, x, y, z, blockId):
+    def setBlock(self, x, y, z, blockId, update=True):
         self._blockData[x + self.DEPTH * (z + self.WIDTH * y)] = blockId
 
         # a block has just been placed, tell the physics manager
         # incase the block has physics and needs to be updated
-        self._physicsManager.updateBlock(x, y, z, blockId)
+        if update:
+            self._physicsManager.updateBlock(x, y, z, blockId)
+
+    def blockInRange(self, x, y, z):
+        return x <= self.WIDTH - 1 and x >= 0 and y <= self.HEIGHT - 1 and y >= 0 and z >= 0 and z <= self.DEPTH - 1
 
     def serialize(self):
         return compress(struct.pack('!I', len(self._blockData)) + bytes(self._blockData))

@@ -8,14 +8,13 @@ from twisted.internet import reactor
 from redstone.network import NetworkFactory
 
 class MinecraftServer(object):
-    reactor = reactor
 
     def __init__(self):
         self._factory = NetworkFactory()
 
     def run(self, port=25565):
-        self.reactor.listenTCP(port, self._factory)
-        self.reactor.run()
+        reactor.listenTCP(port, self._factory)
+        reactor.run()
 
 if __name__ == '__main__':
     server = MinecraftServer()

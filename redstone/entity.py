@@ -9,8 +9,6 @@ from redstone.util import PlayerRanks
 class Entity(object):
 
     def __init__(self, protocol=None):
-        super(Entity, self).__init__()
-
         self._protocol = protocol
         self._id = 0
         self._x = 0
@@ -114,8 +112,6 @@ class PlayerEntity(Entity):
 class UniqueIdAllocator(object):
 
     def __init__(self, maxIds=255):
-        super(UniqueIdAllocator, self).__init__()
-
         self._ids = {id: False for id in xrange(maxIds)}
 
     def allocate(self):
@@ -135,8 +131,6 @@ class UniqueIdAllocator(object):
 class EntityManager(object):
 
     def __init__(self):
-        super(EntityManager, self).__init__()
-
         self._allocator = UniqueIdAllocator()
         self._entities = {}
 
