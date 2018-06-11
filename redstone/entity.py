@@ -18,7 +18,6 @@ class Entity(object):
         self._yaw = 0
         self._pitch = 0
         self._world = ''
-        self._rank = util.PlayerRanks.GUEST
 
     @property
     def protocol(self):
@@ -72,14 +71,6 @@ class Entity(object):
     def world(self, world):
         self._world = world
 
-    @property
-    def rank(self):
-        return self._rank
-
-    @rank.setter
-    def rank(self, rank):
-        self._rank = rank
-
     def isPlayer(self):
         return False
 
@@ -89,6 +80,7 @@ class PlayerEntity(Entity):
         super(PlayerEntity, self).__init__(protocol)
 
         self._username = ''
+        self._rank = util.PlayerRanks.GUEST
         self._muted = False
 
     @property
@@ -98,6 +90,14 @@ class PlayerEntity(Entity):
     @username.setter
     def username(self, username):
         self._username = username
+
+    @property
+    def rank(self):
+        return self._rank
+
+    @rank.setter
+    def rank(self, rank):
+        self._rank = rank
 
     @property
     def muted(self):
