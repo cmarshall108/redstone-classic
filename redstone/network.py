@@ -47,7 +47,7 @@ class NetworkStatus(object):
         try:
             response = urllib2.urlopen(request).read()
         except:
-            logging.Logger.debug('Failed to ping server list!')
+            logging.Logger.warning('Failed to ping server list!')
 
         return task.wait
 
