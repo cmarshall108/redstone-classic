@@ -1,13 +1,15 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
- * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 26th, 2017
+ * Copyright (C) Caleb Marshall - All Rights Reserved
+ * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
-from twisted.internet import task, reactor
-from redstone.logging import Logger as logger
-from redstone.util import PlayerRanks, ChatColors, joinWithSpaces
-from redstone.protocol import PositionAndOrientationStatic, ServerIdentification, ServerMessage, DisconnectPlayer
+from twisted.internet import reactor
+
+import redstone.logging as logging
+import redstone.util as util
+import redstone.packet as packet
+
 
 class CommandSerializer(object):
     KEYWORD = None
@@ -30,7 +32,7 @@ class CommandSerializer(object):
 
 class CommandMute(CommandSerializer):
     KEYWORD = 'mute'
-    PERMISSION = PlayerRanks.ADMINISTRATOR
+    PERMISSION = util.PlayerRanks.ADMINISTRATOR
     DOCUMENTATION = 'Mutes a specific player for an amount of time.'
 
     def serialize(self, target, timeout=None):
@@ -61,7 +63,7 @@ class CommandMute(CommandSerializer):
 
 class CommandKick(CommandSerializer):
     KEYWORD = 'kick'
-    PERMISSION = PlayerRanks.ADMINISTRATOR
+    PERMISSION = util.PlayerRanks.ADMINISTRATOR
     DOCUMENTATION = 'Kicks a player for a certain reason.'
 
     def serialize(self, target, *reason):
@@ -75,25 +77,25 @@ class CommandKick(CommandSerializer):
         if not targetEntity:
             return 'Failed to kick player %s!' % target
 
-        protocol.dispatcher.handleDispatch(DisconnectPlayer.DIRECTION, DisconnectPlayer.ID,
-            joinWithSpaces(reason))
+        protocol.dispatcher.handleDispatch(packet.DisconnectPlayer.DIRECTION, packet.DisconnectPlayer.ID,
+            util.joinWithSpaces(reason))
 
         return 'Successfully kicked player %s!' % targetEntity.name
 
 class CommandSay(CommandSerializer):
     KEYWORD = 'say'
-    PERMISSION = PlayerRanks.ADMINISTRATOR
+    PERMISSION = util.PlayerRanks.ADMINISTRATOR
     DOCUMENTATION = 'Broadcasts a server message.'
 
     def serialize(self, *message):
-        self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], self._protocol.entity.id,
-            '%s[SERVER]%s: %s' % (ChatColors.RED, ChatColors.WHITE, joinWithSpaces(message)))
+        self._protocol.factory.broadcast(packet.ServerMessage.DIRECTION, packet.ServerMessage.ID, [], self._protocol.entity.id,
+            '%s[SERVER]%s: %s' % (util.ChatColors.RED, util.ChatColors.WHITE, util.joinWithSpaces(message)))
 
         return None
 
 class CommandGoto(CommandSerializer):
     KEYWORD = 'goto'
-    PERMISSION = PlayerRanks.GUEST
+    PERMISSION = util.PlayerRanks.GUEST
     DOCUMENTATION = 'Sends a player to a specific world.'
 
     def serialize(self, world):
@@ -115,14 +117,14 @@ class CommandGoto(CommandSerializer):
         if currentWorld.name == targetWorld.name:
             return 'You cannot teleport to a world you\'re already in!'
 
-        self._protocol.dispatcher.handleDispatch(ServerIdentification.DIRECTION, ServerIdentification.ID,
+        self._protocol.dispatcher.handleDispatch(protocol.ServerIdentification.DIRECTION, protocol.ServerIdentification.ID,
             entity.username, entity=entity, worldName=targetWorld.name)
 
         return 'Successfully teleported %s to world %s' % (entity.username, targetWorld.name)
 
 class CommandSaveAll(CommandSerializer):
     KEYWORD = 'saveall'
-    PERMISSION = PlayerRanks.ADMINISTRATOR
+    PERMISSION = util.PlayerRanks.ADMINISTRATOR
     DOCUMENTATION = 'Saves all worlds.'
 
     def serialize(self):
@@ -133,7 +135,7 @@ class CommandSaveAll(CommandSerializer):
 
 class CommandSave(CommandSerializer):
     KEYWORD = 'save'
-    PERMISSION = PlayerRanks.ADMINISTRATOR
+    PERMISSION = util.PlayerRanks.ADMINISTRATOR
     DOCUMENTATION = 'Saves the world your currently in.'
 
     def serialize(self):
@@ -152,7 +154,7 @@ class CommandSave(CommandSerializer):
 
 class CommandTeleport(CommandSerializer):
     KEYWORD = 'tp'
-    PERMISSION = PlayerRanks.GUEST
+    PERMISSION = util.PlayerRanks.GUEST
     DOCUMENTATION = 'Teleports a specific player to another player.'
 
     def serialize(self, target):
@@ -172,14 +174,14 @@ class CommandTeleport(CommandSerializer):
         senderEntity.y = targetEntity.y
         senderEntity.z = targetEntity.z
 
-        self._protocol.factory.broadcast(PositionAndOrientationStatic.DIRECTION, PositionAndOrientationStatic.ID, [], senderEntity.id, senderEntity.x,
+        self._protocol.factory.broadcast(packet.PositionAndOrientationStatic.DIRECTION, packet.PositionAndOrientationStatic.ID, [], senderEntity.id, senderEntity.x,
             senderEntity.y, senderEntity.z, senderEntity.yaw, senderEntity.pitch)
 
         return 'Successfully teleported %s to %s.' % (senderEntity.username, targetEntity.username)
 
 class CommandList(CommandSerializer):
     KEYWORD = 'list'
-    PERMISSION = PlayerRanks.GUEST
+    PERMISSION = util.PlayerRanks.GUEST
     DOCUMENTATION = 'Lists players, worlds currently active.'
 
     def serialize(self, listType):
@@ -211,7 +213,7 @@ class CommandList(CommandSerializer):
 
 class CommandHelp(CommandSerializer):
     KEYWORD = 'help'
-    PERMISSION = PlayerRanks.GUEST
+    PERMISSION = util.PlayerRanks.GUEST
     DOCUMENTATION = 'Shows the help page.'
 
     def serialize(self):
@@ -248,7 +250,7 @@ class CommandDispatcher(object):
 
         dispatcher = self._dispatchers[keyword]
 
-        if not PlayerRanks.hasPermission(dispatcher.protocol.entity, dispatcher.PERMISSION):
+        if not util.PlayerRanks.hasPermission(dispatcher.protocol.entity, dispatcher.PERMISSION):
             return 'You don\'t have access to that command!'
 
         try:

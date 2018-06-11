@@ -1,11 +1,12 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
-from redstone.util import BlockIds
-from redstone.protocol import SetBlockServer
+import redstone.util as util
+import redstone.packet as packet
+
 
 class BlockPhysicsManager(object):
 
@@ -13,7 +14,7 @@ class BlockPhysicsManager(object):
         self._world = world
 
     def hasPhysics(self, blockId):
-        return blockId == BlockIds.SAND or blockId == BlockIds.GRAVEL
+        return blockId == util.BlockIds.SAND or blockId == util.BlockIds.GRAVEL
 
     def updateBlock(self, x, y, z, blockId):
         if self.hasPhysics(blockId):
@@ -22,11 +23,11 @@ class BlockPhysicsManager(object):
     def updateBlockPhysics(self, x, y, z, blockId):
         dy = y - 1
 
-        while self._world.getBlock(x, dy, z) == BlockIds.AIR:
+        while self._world.getBlock(x, dy, z) == util.BlockIds.AIR:
             self.broadcastBlockChange(x, dy, z, blockId)
 
             if self._world.getBlock(x, dy + 1, z) == blockId:
-                self.broadcastBlockChange(x, dy + 1, z, BlockIds.AIR)
+                self.broadcastBlockChange(x, dy + 1, z, util.BlockIds.AIR)
 
             dy -= 1
         else:
@@ -43,7 +44,6 @@ class BlockPhysicsManager(object):
             self.updateBlockPhysics(x, dy, z, blockId)
 
     def broadcastBlockChange(self, x, y, z, blockId):
-
         self._world.setBlock(x, y, z, blockId, False)
-
-        self._world.worldManager.factory.broadcast(SetBlockServer.DIRECTION, SetBlockServer.ID, [], x, y, z, blockId)
+        self._world.worldManager.factory.broadcast(packet.SetBlockServer.DIRECTION,
+            packet.SetBlockServer.ID, [], x, y, z, blockId)

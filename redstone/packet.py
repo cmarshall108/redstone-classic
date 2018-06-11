@@ -1,15 +1,16 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
 import hashlib
 import hmac
 import enum
 
-from redstone.util import DataBuffer, PlayerRanks, ChatColors, BlockIds, Mouse
-from redstone.logging import Logger as logger
+import redstone.util as util
+import redstone.logging as logging
+
 
 class PacketDirections(enum.Enum):
     UPSTREAM = 0
@@ -52,7 +53,7 @@ class SetBlockServer(PacketSerializer):
     ID = 0x06
 
     def serialize(self, x, y, z, blockType):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeShort(x)
         dataBuffer.writeShort(y)
         dataBuffer.writeShort(z)
@@ -79,8 +80,8 @@ class SetBlockClient(PacketSerializer):
             self._protocol.entity.id)
 
         # todo: use block types instead of hard coded block types.
-        if mode == Mouse.LEFT_CLICK:
-            blockType = BlockIds.AIR
+        if mode == util.Mouse.LEFT_CLICK:
+            blockType = util.BlockIds.AIR
 
         # set the block on the world instance
         world.setBlock(x, y, z, blockType)
@@ -94,7 +95,7 @@ class ServerMessage(PacketSerializer):
     ID = 0x0d
 
     def serialize(self, entityId, message):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeSByte(entityId)
         dataBuffer.writeString(message)
 
@@ -136,9 +137,9 @@ class ClientMessage(PacketSerializer):
 
             return
 
-        logger.info('%s: %s' % (entity.username, message))
+        logging.Logger.info('%s: %s' % (entity.username, message))
 
-        message = '%s: %s' % ('%s%s%s' % (self.getColorFromRank(entity), entity.username, ChatColors.WHITE),
+        message = '%s: %s' % ('%s%s%s' % (self.getColorFromRank(entity), entity.username, util.ChatColors.WHITE),
             self.sanitize(message))
 
         self._protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [],
@@ -154,10 +155,10 @@ class ClientMessage(PacketSerializer):
         return message
 
     def getColorFromRank(self, entity):
-        if entity.rank == PlayerRanks.GUEST:
-            return ChatColors.DARK_GRAY
-        elif entity.rank == PlayerRanks.ADMINISTRATOR:
-            return ChatColors.YELLOW
+        if entity.rank == util.PlayerRanks.GUEST:
+            return util.ChatColors.DARK_GRAY
+        elif entity.rank == util.PlayerRanks.ADMINISTRATOR:
+            return util.ChatColors.YELLOW
 
 class PositionAndOrientationStatic(PacketSerializer):
     DIRECTION = PacketDirections.UPSTREAM
@@ -167,7 +168,7 @@ class PositionAndOrientationStatic(PacketSerializer):
         if not self._protocol.entity:
             return
 
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeSByte(-1 if entityId == self._protocol.entity.id else entityId)
         dataBuffer.writeShort(x * 32.0)
         dataBuffer.writeShort(y * 32.0)
@@ -182,7 +183,7 @@ class PositionAndOrientationUpdate(PacketSerializer):
     ID = 0x09
 
     def serialize(self, entityId, x, y, z, yaw, pitch):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeSByte(entityId)
         dataBuffer.writeSByte(x)
         dataBuffer.writeSByte(y)
@@ -260,7 +261,7 @@ class DisconnectPlayer(PacketSerializer):
     ID = 0x0e
 
     def serialize(self, reason):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeString(reason)
 
         return dataBuffer
@@ -273,7 +274,7 @@ class DespawnPlayer(PacketSerializer):
     ID = 0x0c
 
     def serialize(self, entity):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeSByte(entity.id)
 
         return dataBuffer
@@ -286,7 +287,7 @@ class SpawnPlayer(PacketSerializer):
         if not self._protocol.entity:
             return
 
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeSByte(-1 if entity.id == self._protocol.entity.id else entity.id)
         dataBuffer.writeString(entity.username)
         dataBuffer.writeShort(entity.x * 32.0)
@@ -304,7 +305,7 @@ class LevelFinalize(PacketSerializer):
     def serialize(self):
         world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
 
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeShort(world.width)
         dataBuffer.writeShort(world.height)
         dataBuffer.writeShort(world.depth)
@@ -320,7 +321,7 @@ class LevelDataChunk(PacketSerializer):
     ID = 0x03
 
     def serialize(self, chunkCount, chunk):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeShort(len(chunk))
         dataBuffer.writeArray(chunk)
         dataBuffer.writeByte(int((100 / len(chunk)) * chunkCount))
@@ -332,7 +333,7 @@ class LevelInitialize(PacketSerializer):
     ID = 0x02
 
     def serialize(self):
-        return DataBuffer()
+        return util.DataBuffer()
 
     def serializeComplete(self):
         chunk = self._protocol.factory.worldManager.getWorldFromEntity(
@@ -351,14 +352,14 @@ class Ping(PacketSerializer):
     ID = 0x01
 
     def serialize(self):
-        return DataBuffer()
+        return util.DataBuffer()
 
 class ServerIdentification(PacketSerializer):
     DIRECTION = PacketDirections.UPSTREAM
     ID = 0x00
 
     def serialize(self, username, entity=None, worldName=None):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeByte(0x07)
         dataBuffer.writeString('A Minecraft classic server!')
         dataBuffer.writeString('Welcome to the custom Mineserver!')
@@ -433,7 +434,7 @@ class PacketDispatcher(object):
         }
 
     def handleSend(self, dispatcher, otherDataBuffer):
-        dataBuffer = DataBuffer()
+        dataBuffer = util.DataBuffer()
         dataBuffer.writeByte(dispatcher.ID)
         dataBuffer.write(otherDataBuffer.data)
         dispatcher.protocol.transport.write(dataBuffer.data)
@@ -458,4 +459,4 @@ class PacketDispatcher(object):
         dispatcher.serializableCallback()
 
     def handleDiscard(self, direction, packetId):
-        logger.warning('Discarding incoming packet %d!' % packetId)
+        logging.Logger.warning('Discarding incoming packet %d!' % packetId)

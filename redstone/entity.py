@@ -1,10 +1,11 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
-from redstone.util import PlayerRanks
+import redstone.util as util
+
 
 class Entity(object):
 
@@ -17,7 +18,7 @@ class Entity(object):
         self._yaw = 0
         self._pitch = 0
         self._world = ''
-        self._rank = PlayerRanks.GUEST
+        self._rank = util.PlayerRanks.GUEST
 
     @property
     def protocol(self):

@@ -1,19 +1,21 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
 import struct
 import gzip
 import io
 import os
 import json
-from redstone.logging import Logger as logger
-from redstone.entity import Entity, PlayerEntity, EntityManager
-from redstone.protocol import SpawnPlayer, DespawnPlayer, ServerMessage
-from redstone.block import BlockPhysicsManager
-from redstone.util import ChatColors
+
+import redstone.logging as logging
+import redstone.entity as entity
+import redstone.packet as packet
+import redstone.block as block
+import redstone.util as util
+
 
 def compress(data, compresslevel=9):
     """Compress data in one shot and return the compressed string.
@@ -44,8 +46,8 @@ class World(object):
     def __init__(self, worldManager, name, blockData=None):
         self._worldManager = worldManager
         self._name = name
-        self._entityManager = EntityManager()
-        self._physicsManager = BlockPhysicsManager(self)
+        self._entityManager = entity.EntityManager()
+        self._physicsManager = block.BlockPhysicsManager(self)
         self._blockData = blockData if blockData else self.__generate()
 
     @property
@@ -109,7 +111,7 @@ class World(object):
         return compress(struct.pack('!I', len(self._blockData)) + bytes(self._blockData))
 
     def addPlayer(self, protocol, username):
-        playerEntity = PlayerEntity(protocol)
+        playerEntity = entity.PlayerEntity(protocol)
         playerEntity.id = self._entityManager.allocator.allocate()
         playerEntity.username = username
         playerEntity.world = self.name
@@ -124,11 +126,11 @@ class World(object):
         # add the player entity to the entity manager
         self._entityManager.addEntity(playerEntity)
 
-        logger.info('%s joined world %s' % (playerEntity.username, self.name))
+        logging.Logger.info('%s joined world %s' % (playerEntity.username, self.name))
 
         # broadcast the player joined message
-        protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], protocol.entity.id, '%s%s joined the game.%s' % (
-            ChatColors.BLUE, protocol.entity.username, ChatColors.WHITE))
+        protocol.factory.broadcast(packet.ServerMessage.DIRECTION, packet.ServerMessage.ID, [], protocol.entity.id, '%s%s joined the game.%s' % (
+            util.ChatColors.BLUE, protocol.entity.username, util.ChatColors.WHITE))
 
     def removePlayer(self, protocol):
         # remove the protocols entity from the entity manager
@@ -138,14 +140,14 @@ class World(object):
         self._entityManager.allocator.deallocate(protocol.entity.id)
 
         # update all entities for all players except for the entities owner.
-        self._worldManager.broadcast(self, DespawnPlayer.DIRECTION, DespawnPlayer.ID,
+        self._worldManager.broadcast(self, packet.DespawnPlayer.DIRECTION, packet.DespawnPlayer.ID,
             [protocol], protocol.entity)
 
-        logger.info('%s left world %s' % (protocol.entity.username, self.name))
+        logging.Logger.info('%s left world %s' % (protocol.entity.username, self.name))
 
         # broadcast the leaving message
-        protocol.factory.broadcast(ServerMessage.DIRECTION, ServerMessage.ID, [], protocol.entity.id, '%s%s left the game.%s' % (
-            ChatColors.BLUE, protocol.entity.username, ChatColors.WHITE))
+        protocol.factory.broadcast(packet.ServerMessage.DIRECTION, packet.ServerMessage.ID, [], protocol.entity.id, '%s%s left the game.%s' % (
+            util.ChatColors.BLUE, protocol.entity.username, util.ChatColors.WHITE))
 
         # remove the entity from the protocol
         protocol.entity = None
@@ -155,10 +157,10 @@ class World(object):
             if entity.world != self.name or entity.id == protocol.entity.id:
                 continue
 
-            protocol.dispatcher.handleDispatch(SpawnPlayer.DIRECTION, SpawnPlayer.ID, entity)
+            protocol.dispatcher.handleDispatch(packet.SpawnPlayer.DIRECTION, packet.SpawnPlayer.ID, entity)
 
         # now send update for owned entity
-        self._worldManager.broadcast(self, SpawnPlayer.DIRECTION, SpawnPlayer.ID, [], protocol.entity)
+        self._worldManager.broadcast(self, packet.SpawnPlayer.DIRECTION, packet.SpawnPlayer.ID, [], protocol.entity)
 
     def save(self):
         self._worldManager.write(self._worldManager.getFilePath(self.name), 'wb',
@@ -239,10 +241,10 @@ class WorldManagerIO(object):
             fileobj.close()
 
     def create(self, worldName):
-        logger.info('Creating new world [%s]...' % worldName)
+        logging.Logger.info('Creating new world [%s]...' % worldName)
 
     def load(self, worldName):
-        logger.info('Loading world [%s]...' % worldName)
+        logging.Logger.info('Loading world [%s]...' % worldName)
 
     def delete(self, worldName):
         pass
@@ -310,6 +312,16 @@ class WorldManager(WorldManagerIO):
                     return entity
 
         return None
+
+    def getNumPlayers(self):
+        numPlayers = 0
+
+        for world in self._worlds.values():
+            for entity in world.entityManager.entities.values():
+                if entity.isPlayer():
+                    numPlayers += 1
+
+        return numPlayers
 
     def addWorld(self, world):
         if world.name in self._worlds:

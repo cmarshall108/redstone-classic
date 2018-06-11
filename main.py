@@ -1,11 +1,14 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
+
+import sys
 
 from twisted.internet import reactor
 from redstone.network import NetworkFactory
+
 
 class MinecraftServer(object):
 
@@ -16,6 +19,11 @@ class MinecraftServer(object):
         reactor.listenTCP(port, self._factory)
         reactor.run()
 
-if __name__ == '__main__':
+def main(argv):
     server = MinecraftServer()
     server.run()
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[:1]))

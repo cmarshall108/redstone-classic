@@ -1,10 +1,13 @@
 """
- * Copyright (C) Redstone-Crafted (The Redstone Project) - All Rights Reserved
+ * Copyright (C) Caleb Marshall - All Rights Reserved
  * Written by Caleb Marshall <anythingtechpro@gmail.com>, April 23rd, 2017
  * Licensing information can found in 'LICENSE', which is part of this source code package.
- """
+"""
 
-from struct import pack, unpack_from, calcsize
+import string
+import random
+import struct
+
 
 class DataBuffer(object):
 
@@ -31,7 +34,7 @@ class DataBuffer(object):
         self._data += data
 
     def writeTo(self, fmt, *args):
-        self.write(pack('!%s' % fmt, *args))
+        self.write(struct.pack('!%s' % fmt, *args))
 
     def read(self, length):
         data = self._data[self._offset:][:length]
@@ -43,8 +46,8 @@ class DataBuffer(object):
         self._offset = 0
 
     def readFrom(self, fmt):
-        data = unpack_from('!%s' % fmt, self._data, self._offset)
-        self._offset += calcsize('!%s' % fmt)
+        data = struct.unpack_from('!%s' % fmt, self._data, self._offset)
+        self._offset += struct.calcsize('!%s' % fmt)
         return data
 
     def readByte(self):
@@ -90,6 +93,17 @@ def joinWithSpaces(chars):
             out.append('%s ' % char)
 
     return ''.join(out)
+
+def generateRandomSalt(length=16):
+    alphanumerics = '%s%s%s' % (string.digits, string.uppercase,
+        string.lowercase)
+
+    chars = []
+
+    for _ in xrange(length):
+        chars.append(random.choice(alphanumerics))
+
+    return ''.join(chars)
 
 class Mouse(object):
     LEFT_CLICK = 0
