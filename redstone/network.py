@@ -8,7 +8,6 @@ import urllib
 import urllib2
 
 from twisted.internet.protocol import Protocol, ServerFactory
-from twisted.internet.task import LoopingCall
 
 import redstone
 import redstone.logging as logging
