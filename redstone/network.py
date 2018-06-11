@@ -16,19 +16,20 @@ import redstone.util as util
 import redstone.packet as packet
 import redstone.world as world
 import redstone.command as command
+import redstone.task as task
 
 
 class NetworkStatus(object):
 
-    def __init__(self, factory, delay=1.0):
+    def __init__(self, factory, delay=5.0):
         self._factory = factory
         self._delay = delay
 
     def setup(self):
-        self._loop = LoopingCall(self.__update)
-        self._loop.start(self._delay)
+        self._update_task = self._factory.add_task('status-update', self.__update,
+            priority=-1, delay=self._delay)
 
-    def __update(self):
+    def __update(self, task):
         url = 'http://www.classicube.net/server/heartbeat'
         fields = {
             'port': 25565,
@@ -47,6 +48,8 @@ class NetworkStatus(object):
             response = urllib2.urlopen(request).read()
         except:
             logging.Logger.debug('Failed to ping server list!')
+
+        return task.wait
 
 class NetworkProtocol(Protocol):
 
@@ -96,10 +99,12 @@ class NetworkProtocol(Protocol):
     def connectionLost(self, reason=None):
         self.factory.removeProtocol(self)
 
-class NetworkFactory(ServerFactory):
+class NetworkFactory(ServerFactory, task.TaskManager):
     protocol = NetworkProtocol
 
     def __init__(self):
+        task.TaskManager.__init__(self)
+
         self._protocols = []
         self._salt = util.generateRandomSalt()
         self._worldManager = world.WorldManager(self)
@@ -112,10 +117,6 @@ class NetworkFactory(ServerFactory):
     @property
     def salt(self):
         return self._salt
-
-    @salt.setter
-    def salt(self, salt):
-        self.salt = salt
 
     @property
     def worldManager(self):
