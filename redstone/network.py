@@ -32,14 +32,14 @@ class NetworkStatus(object):
     def __update(self, task):
         url = 'http://www.classicube.net/server/heartbeat'
         fields = {
-            'port': 25565,
+            'port': self._factory.daemon.port,
             'max': 1024,
-            'name': 'Redstone Classic',
-            'public': True,
+            'name': self._factory.daemon.name,
+            'public': self._factory.daemon.public,
             'version': 7,
             'salt': self._factory.salt,
             'users': self._factory.worldManager.getNumPlayers(),
-            'software': 'Redstone v%s' % redstone.__version__,
+            'software': self._factory.daemon.software,
         }
 
         request = urllib2.Request(url, urllib.urlencode(fields))
@@ -102,13 +102,18 @@ class NetworkProtocol(Protocol):
 class NetworkFactory(ServerFactory, task.TaskManager):
     protocol = NetworkProtocol
 
-    def __init__(self):
+    def __init__(self, daemon):
         task.TaskManager.__init__(self)
 
+        self._daemon = daemon
         self._protocols = []
         self._salt = util.generateRandomSalt()
         self._worldManager = world.WorldManager(self)
         self._status = NetworkStatus(self)
+
+    @property
+    def daemon(self):
+        return self._daemon
 
     @property
     def protocols(self):

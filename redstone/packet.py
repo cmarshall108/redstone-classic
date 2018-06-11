@@ -25,6 +25,10 @@ class PacketSerializer(object):
         self._dispatcher = dispatcher
 
     @property
+    def factory(self):
+        return self._protocol.factory
+
+    @property
     def protocol(self):
         return self._protocol
 
@@ -364,8 +368,8 @@ class ServerIdentification(PacketSerializer):
     def serialize(self, username, entity=None, worldName=None):
         dataBuffer = util.DataBuffer()
         dataBuffer.writeByte(0x07)
-        dataBuffer.writeString('A Minecraft classic server!')
-        dataBuffer.writeString('Welcome to the custom Mineserver!')
+        dataBuffer.writeString(self.factory.daemon.name)
+        dataBuffer.writeString(self.factory.daemon.motd)
         dataBuffer.writeByte(0x00)
 
         if not worldName:
