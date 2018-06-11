@@ -221,7 +221,7 @@ class CommandHelp(CommandSerializer):
     def serialize(self):
         docs = []
 
-        for command in self._dispatcher.commands.values():
+        for command in sorted(self._dispatcher.commands.values()):
             docs.append('> /%s: %s' % (command.KEYWORD, command.DESCRIPTION))
 
         return docs
