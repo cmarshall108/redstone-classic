@@ -359,6 +359,8 @@ class TaskManager(object):
                 except (KeyboardInterrupt, SystemExit):
                     self._shutdown = True
 
+                time.sleep(0.01)
+
             self.destroy()
 
         thread = threading.Thread(target=mainloop)
