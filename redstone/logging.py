@@ -7,6 +7,11 @@
 import sys
 import time
 
+from colorama import init
+from colorama import Fore, Back, Style
+
+init(autoreset=True)
+
 
 class Logger(object):
 
@@ -15,22 +20,22 @@ class Logger(object):
         return time.ctime()
 
     @classmethod
-    def log(cls, level, message):
-        print >> sys.stdout, '[%s][%s]:: %s\r' % (cls.getTimestamp(), level,
-            message)
+    def log(cls, color, level, message):
+        print >> sys.stdout, '%s[%s][%s]:: %s\r' % (color,
+            cls.getTimestamp(), level, message)
 
     @classmethod
     def info(cls, message):
-        cls.log('INFO', message)
+        cls.log(Fore.GREEN, 'INFO', message)
 
     @classmethod
     def debug(cls, message):
-        cls.log('DEBUG', message)
+        cls.log(Fore.BLUE, 'DEBUG', message)
 
     @classmethod
     def warning(cls, message):
-        cls.log('WARNING', message)
+        cls.log(Fore.YELLOW, 'WARNING', message)
 
     @classmethod
     def error(cls, message):
-        cls.log('ERROR', message)
+        cls.log(Fore.RED, 'ERROR', message)
