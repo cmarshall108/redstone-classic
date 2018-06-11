@@ -4,8 +4,6 @@
  * Licensing information can found in 'LICENSE', which is part of this source code package.
 """
 
-from twisted.internet import reactor
-
 import redstone.logging as logging
 import redstone.util as util
 import redstone.packet as packet
@@ -14,7 +12,7 @@ import redstone.packet as packet
 class CommandSerializer(object):
     KEYWORD = None
     PERMISSION = None
-    DOCUMENTATION = None
+    DESCRIPTION = None
 
     def __init__(self, dispatcher, protocol):
         self._dispatcher = dispatcher
@@ -33,21 +31,26 @@ class CommandSerializer(object):
 class CommandMute(CommandSerializer):
     KEYWORD = 'mute'
     PERMISSION = util.PlayerRanks.ADMINISTRATOR
-    DOCUMENTATION = 'Mutes a specific player for an amount of time.'
+    DESCRIPTION = 'Mutes a specific player for an amount of time.'
 
     def serialize(self, target, timeout=None):
-        targetEntity = self._protocol.factory.worldManager.getEntityFromUsername(target)
 
-        if not targetEntity:
-            return 'Failed to mute/unmute unknown player %s!' % target
+        def callback(task):
+            targetEntity = self._protocol.factory.worldManager.\
+                getEntityFromUsername(target)
 
-        if not targetEntity.isPlayer():
-            return 'Failed to mute non player %s!' % target
+            if not targetEntity:
+                return 'Failed to mute/unmute unknown player %s!' % target
 
-        if targetEntity.muted:
-            targetEntity.muted = False
-        else:
-            targetEntity.muted = True
+            if not targetEntity.isPlayer():
+                return 'Failed to mute non player %s!' % target
+
+            if targetEntity.muted:
+                targetEntity.muted = False
+            else:
+                targetEntity.muted = True
+
+            return task.done
 
         # if a timeout float is specified, thich means we are to unmute
         # the player after a certain amount of time "timeout".
@@ -57,14 +60,13 @@ class CommandMute(CommandSerializer):
             except:
                 return 'Failed to mute player %s for %s!' % (target, timeout)
 
-            reactor.callLater(timeout, self.serialize, target)
-
+        self.factory.add_task('command-mute-%s' % target, callback)
         return 'Successfully muted %s.' % target
 
 class CommandKick(CommandSerializer):
     KEYWORD = 'kick'
     PERMISSION = util.PlayerRanks.ADMINISTRATOR
-    DOCUMENTATION = 'Kicks a player for a certain reason.'
+    DESCRIPTION = 'Kicks a player for a certain reason.'
 
     def serialize(self, target, *reason):
         targetEntity = self._protocol.factory.worldManager.getEntityFromUsername(target)
@@ -85,7 +87,7 @@ class CommandKick(CommandSerializer):
 class CommandSay(CommandSerializer):
     KEYWORD = 'say'
     PERMISSION = util.PlayerRanks.ADMINISTRATOR
-    DOCUMENTATION = 'Broadcasts a server message.'
+    DESCRIPTION = 'Broadcasts a server message.'
 
     def serialize(self, *message):
         self._protocol.factory.broadcast(packet.ServerMessage.DIRECTION, packet.ServerMessage.ID, [], self._protocol.entity.id,
@@ -96,7 +98,7 @@ class CommandSay(CommandSerializer):
 class CommandGoto(CommandSerializer):
     KEYWORD = 'goto'
     PERMISSION = util.PlayerRanks.GUEST
-    DOCUMENTATION = 'Sends a player to a specific world.'
+    DESCRIPTION = 'Sends a player to a specific world.'
 
     def serialize(self, world):
         entity = self._protocol.entity
@@ -125,7 +127,7 @@ class CommandGoto(CommandSerializer):
 class CommandSaveAll(CommandSerializer):
     KEYWORD = 'saveall'
     PERMISSION = util.PlayerRanks.ADMINISTRATOR
-    DOCUMENTATION = 'Saves all worlds.'
+    DESCRIPTION = 'Saves all worlds.'
 
     def serialize(self):
         for world in self._protocol.factory.worldManager.worlds.values():
@@ -136,7 +138,7 @@ class CommandSaveAll(CommandSerializer):
 class CommandSave(CommandSerializer):
     KEYWORD = 'save'
     PERMISSION = util.PlayerRanks.ADMINISTRATOR
-    DOCUMENTATION = 'Saves the world your currently in.'
+    DESCRIPTION = 'Saves the world your currently in.'
 
     def serialize(self):
         entity = self._protocol.entity
@@ -155,7 +157,7 @@ class CommandSave(CommandSerializer):
 class CommandTeleport(CommandSerializer):
     KEYWORD = 'tp'
     PERMISSION = util.PlayerRanks.GUEST
-    DOCUMENTATION = 'Teleports a specific player to another player.'
+    DESCRIPTION = 'Teleports a specific player to another player.'
 
     def serialize(self, target):
         senderEntity = self._protocol.entity
@@ -182,7 +184,7 @@ class CommandTeleport(CommandSerializer):
 class CommandList(CommandSerializer):
     KEYWORD = 'list'
     PERMISSION = util.PlayerRanks.GUEST
-    DOCUMENTATION = 'Lists players, worlds currently active.'
+    DESCRIPTION = 'Lists players, worlds currently active.'
 
     def serialize(self, listType):
 
@@ -214,13 +216,13 @@ class CommandList(CommandSerializer):
 class CommandHelp(CommandSerializer):
     KEYWORD = 'help'
     PERMISSION = util.PlayerRanks.GUEST
-    DOCUMENTATION = 'Shows the help page.'
+    DESCRIPTION = 'Shows the help page.'
 
     def serialize(self):
         docs = []
 
         for command in self._dispatcher.commands.values():
-            docs.append('> /%s: %s' % (command.KEYWORD, command.DOCUMENTATION))
+            docs.append('> /%s: %s' % (command.KEYWORD, command.DESCRIPTION))
 
         return docs
 
@@ -267,7 +269,16 @@ class CommandParser(object):
     KEYWORD = '/'
 
     def __init__(self, protocol):
+        self._protocol = protocol
         self._dispatcher = CommandDispatcher(protocol)
+
+    @property
+    def factory(self):
+        return self._protocol.factory
+
+    @property
+    def protocol(self):
+        return self._protocol
 
     def isCommand(self, message):
         return message.startswith(self.KEYWORD)
