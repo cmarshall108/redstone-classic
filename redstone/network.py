@@ -10,6 +10,7 @@ import urllib2
 from twisted.internet.protocol import Protocol, ServerFactory
 from twisted.internet.task import LoopingCall
 
+import redstone
 import redstone.logging as logging
 import redstone.util as util
 import redstone.packet as packet
@@ -36,8 +37,8 @@ class NetworkStatus(object):
             'public': True,
             'version': 7,
             'salt': self._factory.salt,
-            'users': self._factory.worldManager.getNumPlayers() + 15,
-            'software': 'redstone',
+            'users': self._factory.worldManager.getNumPlayers(),
+            'software': 'Redstone v%s' % redstone.__version__,
         }
 
         request = urllib2.Request(url, urllib.urlencode(fields))

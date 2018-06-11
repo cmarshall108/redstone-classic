@@ -87,8 +87,8 @@ class SetBlockClient(PacketSerializer):
         world.setBlock(x, y, z, blockType)
 
         # now broadcast update for the block to all clients
-        self._protocol.factory.worldManager.broadcast(world, SetBlockServer.DIRECTION, SetBlockServer.ID, [self._protocol],
-            x, y, z, blockType)
+        self._protocol.factory.worldManager.broadcast(world, SetBlockServer.DIRECTION,
+            SetBlockServer.ID, [self._protocol], x, y, z, blockType)
 
 class ServerMessage(PacketSerializer):
     DIRECTION = PacketDirections.UPSTREAM
@@ -303,7 +303,8 @@ class LevelFinalize(PacketSerializer):
     ID = 0x04
 
     def serialize(self):
-        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id)
 
         dataBuffer = util.DataBuffer()
         dataBuffer.writeShort(world.width)
@@ -313,8 +314,10 @@ class LevelFinalize(PacketSerializer):
         return dataBuffer
 
     def serializeComplete(self):
-        world = self._protocol.factory.worldManager.getWorldFromEntity(self._protocol.entity.id).\
-            updatePlayers(self._protocol)
+        world = self._protocol.factory.worldManager.getWorldFromEntity(
+            self._protocol.entity.id)
+
+        world.updatePlayers(self._protocol)
 
 class LevelDataChunk(PacketSerializer):
     DIRECTION = PacketDirections.UPSTREAM
@@ -374,7 +377,6 @@ class ServerIdentification(PacketSerializer):
             world.removePlayer(self._protocol)
 
         world.addPlayer(self._protocol, username)
-
         return dataBuffer
 
     def serializeComplete(self):
